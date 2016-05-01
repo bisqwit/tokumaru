@@ -258,7 +258,7 @@ static void DecodeTilesFrom(const unsigned char* data, int bytesremain, std::vec
         return r*2 + GetBit();
     };
     unsigned num_tiles = bytesremain-- ? *data++ : 0; if(!num_tiles) num_tiles=512;
-    printf("Decoding %u tiles...\n", num_tiles);
+    if(!quiet) std::printf("Decoding %u tiles...\n", num_tiles);
     unsigned char Count[4], Next0[4]{0,0,0,0}, Next1[4]{0,0,0,0}, Next2[4]{0,0,0,0};
 read_colors:
     for(unsigned c=4; c-- > 0; )
@@ -301,7 +301,7 @@ read_tiles:
     output.insert(output.end(), plane2+0, plane2+8);
     if(num_tiles-- > 1)
         { if(GetBit()) goto read_colors; else goto read_tiles; }
-    printf("%u bytes produced, %d bytes remain\n", unsigned(output.size()), bytesremain);
+    if(!quiet) std::printf("%u bytes produced, %d bytes remain\n", unsigned(output.size()), bytesremain);
 }
 
 int main(int argc, char** argv)
