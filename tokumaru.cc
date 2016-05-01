@@ -39,22 +39,26 @@ static unsigned compressionlevel = 5;
 static bool quiet   = false;
 static bool threads = true;
 
+// Extract one pixel from a tile.
 static unsigned ExtractColor(const unsigned char* tile, unsigned y, unsigned x)
 {
     return ((tile[y+0]>>(7-x))&1)*1
          + ((tile[y+8]>>(7-x))&1)*2;
 }
+// Compare a single row of two tiles (8 pixels).
 static bool IdenticalRows(const unsigned char* tilerow1, const unsigned char* tilerow2)
 {
     return tilerow1[0] == tilerow2[0] && tilerow1[8] == tilerow2[8];
 }
 
+static const unsigned char blankrow[9] = {0};
+
+
+// The color frequency information collected before blocks are encoded
 struct FollowupData
 {
     unsigned next[4][4], count[4];
 };
-
-static const unsigned char blankrow[9] = {0};
 
 template<typename F>
 static FollowupData EncodeColors(const unsigned char* tiles, unsigned numtiles, F&& PutBits)
@@ -86,7 +90,7 @@ static FollowupData EncodeColors(const unsigned char* tiles, unsigned numtiles, 
         // the most popular color and the list of colors that can follow.
         switch(num_next)
         {
-            default: continue; // If c is always followed by c, send nothing
+            default: assert(num_next==0); continue; // If c is always followed by c, send nothing
             case 1:
                 pick = f.next[c][0]; // Show the only non-c continuation
                 break;
@@ -124,8 +128,6 @@ static void EncodeTilesAndColors(const unsigned char* tiles, unsigned numtiles, 
                         PutBits(d, 2);
                     else
                     {
-                        //fprintf(stderr, "x=%u. Prev = %u, now = %u. Permitted followups for %u (%u): %d %d %d\n",
-                        //    x, c, d,   c, f.count[c], f.next[c][0], f.next[c][1], f.next[c][2]);
                         if(f.count[c]==0) { assert(d == c); }
                         if(f.count[c]==1) { assert(d == c || d == f.next[c][0]); }
                         if(f.count[c]==2) { assert(d == c || d == f.next[c][0] || d == f.next[c][1]); }
@@ -276,8 +278,8 @@ read_colors:
         }
         //printf("Next for %u are (count=%u): %d %d %d\n", c, Count[c], Next0[c],Next1[c],Next2[c]);
     }
-read_tiles:
     unsigned char part0=0x00, part1=0x00, plane2[8];
+read_tiles:
     for(unsigned y=0; y<8; output.push_back(part0), plane2[y++] = part1)
         if(!GetBit())
             for(unsigned c = Get2Bits(), d,
@@ -358,7 +360,7 @@ int main(int argc, char** argv)
             }
         ++argv;
     }
-    if(decompress) ++argv;
+
     std::FILE* fp = std::fopen(argv[1], "rb");
     if(!fp) { std::perror(argv[1]); return 1; }
     std::fseek(fp, 0, SEEK_END);
