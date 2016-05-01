@@ -2,6 +2,8 @@
  *
  * Copyright (C) 2016 Joel Yliluoma - http://iki.fi/bisqwit/
  *
+ * #include "zlib license.txt"
+ *
  * Based on algorithm described at http://pastebin.com/GNnimLzX
  * The documentation is based on code released by Tokumaru
  * at http://forums.nesdev.com/viewtopic.php?p=54230#p54230
@@ -64,6 +66,7 @@ template<typename F>
 static FollowupData EncodeColors(const unsigned char* tiles, unsigned numtiles, F&& PutBits)
 {
     FollowupData f;
+    // Measure the number of transitions from each color to another
     for(unsigned c=0; c<4; ++c) for(unsigned d=0; d<4; ++d) f.next[c][d] = d + (c==d ? 0 : 4);
     const unsigned char* prevrow = blankrow;
     for(unsigned n=0; n<numtiles; ++n, tiles += 16)
@@ -234,7 +237,7 @@ void EncodeTilesTo(const unsigned char* tiles, unsigned numtiles, F&& PutByte)
         }
         return value;
     };
-    PutByte(numtiles);
+    PutByte(numtiles < 256 ? numtiles : 0u);
     EncodeTiles(tiles, numtiles, PutBits);
     // flush bits
     while(bitBuffer != 0x01) PutBits(0,1);
@@ -257,7 +260,7 @@ static void DecodeTilesFrom(const unsigned char* data, int bytesremain, std::vec
         unsigned r = GetBit();
         return r*2 + GetBit();
     };
-    unsigned num_tiles = bytesremain-- ? *data++ : 0; if(!num_tiles) num_tiles=512;
+    unsigned num_tiles = bytesremain-- ? *data++ : 0;
     if(!quiet) std::printf("Decoding %u tiles...\n", num_tiles);
     unsigned char Count[4], Next0[4]{0,0,0,0}, Next1[4]{0,0,0,0}, Next2[4]{0,0,0,0};
 read_colors:
@@ -299,7 +302,7 @@ read_tiles:
                 if(GetBit()) d = Next2[c];                           // 010 = keep color1, 011 = keep color2
             }
     output.insert(output.end(), plane2+0, plane2+8);
-    if(num_tiles-- > 1)
+    if((!num_tiles && bytesremain >= 1) || num_tiles-- > 1)
         { if(GetBit()) goto read_colors; else goto read_tiles; }
     if(!quiet) std::printf("%u bytes produced, %d bytes remain\n", unsigned(output.size()), bytesremain);
 }

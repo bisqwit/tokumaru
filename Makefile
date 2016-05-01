@@ -22,13 +22,12 @@ source.zip: tokumaru.cc Makefile algorithm.txt
 
 test:	tokumaru smb1a.dat kirbyu.dat
 	./tokumaru smb1a.dat  tmp1
-	dd if=kirbyu.dat bs=4096 count=2 of=tmp2a
-	./tokumaru tmp2a tmp2
+	./tokumaru kirbyu.dat tmp2
 	./tokumaru -d tmp1 tmp1out
 	./tokumaru -d tmp2 tmp2out
 	cmp smb1a.dat  tmp1out
-	cmp tmp2a      tmp2out
-	rm -f tmp1 tmp2 tmp1out tmp2out tmp2a
+	cmp kirbyu.dat tmp2out
+	rm -f tmp1 tmp2 tmp1out tmp2out
 
 
 clean:
