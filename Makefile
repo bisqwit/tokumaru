@@ -1,4 +1,4 @@
-VERSION=1.0.1
+VERSION=1.0.0
 CXXFLAGS=-std=c++14 -Wall -Ofast -fopenmp -Wextra -march=native
 ARCHDIR=archives/
 ARCHFILES=\
