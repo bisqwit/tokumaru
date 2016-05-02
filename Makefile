@@ -1,4 +1,10 @@
+VERSION=1.0.0
 CXXFLAGS=-std=c++14 -Wall -Ofast -fopenmp -Wextra -march=native
+ARCHDIR=archives/
+ARCHFILES=\
+	tokumaru.cc algorithm.txt \
+	progdesc.php README
+ARCHNAME=tokumaru-$(VERSION)
 
 all: tokumaru tokumaru-w32.exe tokumaru-w64.exe
 
@@ -15,7 +21,7 @@ tokumaru-w64.exe: tokumaru.cc
 tokumaru: tokumaru.cc
 	g++ -o "$@" "$<" $(CXXFLAGS)
 
-source.zip: tokumaru.cc Makefile algorithm.txt
+source.zip: tokumaru.cc Makefile algorithm.txt README
 	zip -9 "$@" $^
 	- advzip -z4 -i512 "$@"
 	- DeflOpt "$@"
@@ -32,3 +38,5 @@ test:	tokumaru smb1a.dat kirbyu.dat
 
 clean:
 	rm -f tokumaru tokumaru-w32.exe tokumaru-w64.exe
+
+include depfun.mak

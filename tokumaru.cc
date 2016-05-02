@@ -63,20 +63,22 @@ struct FollowupData
 };
 
 template<typename F>
-static FollowupData EncodeColors(const unsigned char* tiles, unsigned numtiles, F&& PutBits)
+static void CompressWholeBlock(const unsigned char* tiles, unsigned numtiles, F&& PutBits)
 {
+    // First encode colors
     FollowupData f;
-    // Measure the number of transitions from each color to another
     for(unsigned c=0; c<4; ++c) for(unsigned d=0; d<4; ++d) f.next[c][d] = d + (c==d ? 0 : 4);
-    const unsigned char* prevrow = blankrow;
-    for(unsigned n=0; n<numtiles; ++n, tiles += 16)
-        for(unsigned y=0; y<8; prevrow = tiles + y++)
-            if(!IdenticalRows(prevrow, tiles+y))
+
+    // Measure the number of transitions from each color to another
+    for(const unsigned char* prevrow = blankrow, *tp = tiles; tp < tiles+16*numtiles; tp += 16)
+        for(unsigned y=0; y<8; prevrow = tp + y++)
+            if(!IdenticalRows(prevrow, tp+y))
                 for(unsigned d,c=0, x=0; x<8; ++x, c=d)
                 {
-                    d = ExtractColor(tiles,y,x);
+                    d = ExtractColor(tp,y,x);
                     if(x > 0 && c != d) f.next[c][d] += 4;
                 }
+
     // Sort the follow-ups in descending order of uses. Make sure c itself is last.
     // This is ensured by the use-count remaining zero whenever c->c transition occurs.
     for(unsigned c=0; c<4; ++c)
@@ -110,51 +112,30 @@ static FollowupData EncodeColors(const unsigned char* tiles, unsigned numtiles, 
         else if(pick==(2-(c>=2)))        PutBits(2,2);   // Bit pattern: 10
         else { assert(pick==(3-(c>=3))); PutBits(3,2); } // Bit pattern: 11
     }
-    return f;
-}
 
-template<typename F>
-static void EncodeTilesAndColors(const unsigned char* tiles, unsigned numtiles, F&& PutBits)
-{
-    FollowupData f = EncodeColors(tiles, numtiles, PutBits);
-
-    const unsigned char* prevrow = blankrow;
-    for(unsigned n=0; n<numtiles; ++n, tiles += 16)
+    // Then encode tiles
+    for(const unsigned char* prevrow = blankrow, *tp = tiles; tp < tiles+16*numtiles; tp += 16)
     {
-        if(n > 0) PutBits(0, 1); // flag for read more tiles
-        for(unsigned y=0; y<8; prevrow = tiles + y++)
-            if(!PutBits(IdenticalRows(prevrow, tiles+y), 1))
-                for(unsigned d,c=0, x=0; x<8; ++x, c=d)
+        if(tp!=tiles) PutBits(0, 1); // flag for read more tiles
+        for(unsigned y=0; y<8; prevrow = tp + y++)
+            if(!PutBits(IdenticalRows(prevrow, tp+y), 1))
+                for(unsigned c=0, x=0; x<8; ++x)
                 {
-                    d = ExtractColor(tiles,y,x);
-                    if(x == 0)
-                        PutBits(d, 2);
-                    else
-                    {
-                        if(f.count[c]==0) { assert(d == c); }
-                        if(f.count[c]==1) { assert(d == c || d == f.next[c][0]); }
-                        if(f.count[c]==2) { assert(d == c || d == f.next[c][0] || d == f.next[c][1]); }
-
-                        if(f.count[c]==0 || PutBits(c==d, 1)
-                        || f.count[c]==1 || !PutBits(d!=f.next[c][0], 1)
-                        || f.count[c]==2 || !PutBits(d!=f.next[c][1], 1)) continue;
-                    }
+                    unsigned prev=c; c=ExtractColor(tp,y,x);
+                    if(x == 0) { PutBits(c, 2); continue; }
+                    if(f.count[prev]==0 || PutBits(c == prev, 1)
+                    || f.count[prev]==1 || !PutBits(c != f.next[prev][0], 1)
+                    || f.count[prev]==2 || !PutBits(c != f.next[prev][1], 1)) continue;
                 }
     }
 }
 
-static unsigned CountEncodeTiles(const unsigned char* tiles, unsigned numtiles)
-{
-    unsigned total=0;
-    auto PutBits = [&](unsigned value, unsigned numbits) { total += numbits; return value; };
-    EncodeTilesAndColors(tiles, numtiles, PutBits);
-    return total;
-}
-
 template<typename F>
-void EncodeTiles(const unsigned char* tiles, unsigned numtiles, F&& PutBits)
+void CompressTilesWithBlockSplitting(const unsigned char* tiles, unsigned numtiles, F&& PutBits)
 {
-    // Benchmark to beat: 4908 (Tokumaru)
+    // Create a directed acyclic graph from all starting positions
+    // to blocks of different lengths, where the length of the arc
+    // is the bit count required to encode that block
     std::vector<unsigned> compress_tree(numtiles*numtiles, ~0u);
 
     const unsigned MaxLeap = 1u << compressionlevel;
@@ -174,13 +155,15 @@ void EncodeTiles(const unsigned char* tiles, unsigned numtiles, F&& PutBits)
         }
         for(unsigned length=std::min(MaxLeap,numtiles-begin); length>0; --length)
         {
-            unsigned bits = CountEncodeTiles(tiles+begin*16, length);
+            unsigned bits=0;
+            CompressWholeBlock(tiles+begin*16, length,
+                [&](unsigned value, unsigned numbits) { bits += numbits; return value; });
             compress_tree[begin*numtiles + length] = bits;
         }
     }
     if(!quiet) std::printf("\n");
 
-    // Figure out the shortest path through the compression tree (use Dijkstra's algorithm)
+    // Figure out the shortest path through that graph (use Dijkstra's algorithm)
     struct Record { unsigned distance=~0u, previous=~0u; bool visited=false; };
     std::vector<Record> targets(numtiles+1);
 
@@ -217,14 +200,14 @@ void EncodeTiles(const unsigned char* tiles, unsigned numtiles, F&& PutBits)
     {
         unsigned leap = *i;
         if(position) PutBits(1,1);
-        EncodeTilesAndColors(tiles + position*16, leap, PutBits);
+        CompressWholeBlock(tiles + position*16, leap, PutBits);
         position += leap;
     }
     assert(position == numtiles);
 }
 
 template<typename F>
-void EncodeTilesTo(const unsigned char* tiles, unsigned numtiles, F&& PutByte)
+void CompressTiles(const unsigned char* tiles, unsigned numtiles, F&& PutByte)
 {
     unsigned char bitBuffer = 0x01;
     auto PutBits = [&](unsigned value, unsigned numbits) -> unsigned
@@ -238,12 +221,15 @@ void EncodeTilesTo(const unsigned char* tiles, unsigned numtiles, F&& PutByte)
         return value;
     };
     PutByte(numtiles < 256 ? numtiles : 0u);
-    EncodeTiles(tiles, numtiles, PutBits);
+    if(compressionlevel == 0)
+        CompressWholeBlock(tiles, numtiles, PutBits);
+    else
+        CompressTilesWithBlockSplitting(tiles, numtiles, PutBits);
     // flush bits
     while(bitBuffer != 0x01) PutBits(0,1);
 }
 
-static void DecodeTilesFrom(const unsigned char* data, int bytesremain, std::vector<unsigned char>& output)
+static void DecompressTiles(const unsigned char* data, int bytesremain, std::vector<unsigned char>& output)
 {
     unsigned BitCount = 0x10000u;
     auto GetBit = [&]() -> bool
@@ -285,21 +271,16 @@ read_colors:
 read_tiles:
     for(unsigned y=0; y<8; output.push_back(part0), plane2[y++] = part1)
         if(!GetBit())
-            for(unsigned c = Get2Bits(), d,
+            for(unsigned c=0,
                 x=0; x<8; ++x,
-                c = d,
                 part0 = (part0 << 1) | ((c>>0)&1),
                 part1 = (part1 << 1) | ((c>>1)&1))
             {
-                if(x==0 || !Count[c] || GetBit()) { d=c; continue; }
-                // Possible counts: -123. Bits so far: 0
-                d = Next0[c];              if(Count[c]==1) continue; // 0  = keep color0 (count=1 only)
-                // Possible counts: --23. Bits so far: 0
-                if(GetBit()) d = Next1[c]; else continue;            // 00 = keep color0
-                // Possible counts: --23. Bits so far: 01
-                                           if(Count[c]==2) continue; // 01 = keep color1 (count=2 only)
-                // Possible counts: ---3. Bits so far: 01
-                if(GetBit()) d = Next2[c];                           // 010 = keep color1, 011 = keep color2
+                c = (x==0) ? Get2Bits()
+                  : (Count[c]==0 ||  GetBit()) ? c
+                  : (Count[c]==1 || !GetBit()) ? Next0[c]
+                  : (Count[c]==2 || !GetBit()) ? Next1[c]
+                  :                              Next2[c];
             }
     output.insert(output.end(), plane2+0, plane2+8);
     if((!num_tiles && bytesremain >= 1) || num_tiles-- > 1)
@@ -372,9 +353,9 @@ int main(int argc, char** argv)
     std::fread(&input[0], 1, input.size(), fp);
     std::fclose(fp);
     if(decompress)
-        DecodeTilesFrom(&input[0], input.size(), output);
+        DecompressTiles(&input[0], input.size(), output);
     else
-        EncodeTilesTo(&input[0], input.size()/16, [&](unsigned char c) { output.push_back(c); });
+        CompressTiles(&input[0], input.size()/16, [&](unsigned char c) { output.push_back(c); });
 
     if(argv[2])
     {
