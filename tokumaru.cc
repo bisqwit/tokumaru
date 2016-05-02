@@ -250,37 +250,34 @@ static void DecompressTiles(const unsigned char* data, int bytesremain, std::vec
     if(!quiet) std::printf("Decoding %u tiles...\n", num_tiles);
     unsigned char Count[4], Next0[4]{0,0,0,0}, Next1[4]{0,0,0,0}, Next2[4]{0,0,0,0};
 read_colors:
-    for(unsigned c=4; c-- > 0; )
+    for(unsigned A,B,C,n, c=4; c-- > 0; Count[c] = n)
     {
-        Count[c] = Get2Bits();
-        if(!Count[c]) continue;
-        unsigned A = 1;
-        if(GetBit()) A += 1 + GetBit(); // Map 0, 10 and 11 into 1,2,3 respectively
+        // Read number of colors that can follow c
+        n = Get2Bits();
+        if(!n) continue;
+        // Read the pivot color
+        A = GetBit() ? 2 + GetBit() : 1;
         if(c >= A) --A;
-        unsigned B = 0;   while(B==A || B==c) ++B;
-        unsigned C = B+1; while(C==A || C==c) ++C;
-        switch(Count[c])
-        {
-            case 1: Next0[c] = A; break;
-            case 2:               Next0[c] = B; Next1[c] = C; break;
-            case 3: Next0[c] = A; Next1[c] = B; Next2[c] = C; break;
-        }
-        //printf("Next for %u are (count=%u): %d %d %d\n", c, Count[c], Next0[c],Next1[c],Next2[c]);
+        // Calculate the two other colors, that are neither c nor A
+        for(B = 0;   B==A || B==c; ++B) {}
+        for(C = B+1; C==A || C==c; ++C) {}
+        // Save
+        if(n == 2) { A = B; B = C; } // When count=2, A is _not_ included
+        Next0[c] = A; Next1[c] = B; Next2[c] = C;
     }
     unsigned char part0=0x00, part1=0x00, plane2[8];
 read_tiles:
     for(unsigned y=0; y<8; output.push_back(part0), plane2[y++] = part1)
         if(!GetBit())
-            for(unsigned c=0,
-                x=0; x<8; ++x,
-                part0 = (part0 << 1) | ((c>>0)&1),
-                part1 = (part1 << 1) | ((c>>1)&1))
+            for(unsigned c=0, x=0; x<8; ++x)
             {
                 c = (x==0) ? Get2Bits()
                   : (Count[c]==0 ||  GetBit()) ? c
                   : (Count[c]==1 || !GetBit()) ? Next0[c]
                   : (Count[c]==2 || !GetBit()) ? Next1[c]
                   :                              Next2[c];
+                part0 = (part0 << 1) | ((c>>0)&1);
+                part1 = (part1 << 1) | ((c>>1)&1);
             }
     output.insert(output.end(), plane2+0, plane2+8);
     if((!num_tiles && bytesremain >= 1) || num_tiles-- > 1)
