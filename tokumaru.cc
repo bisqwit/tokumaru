@@ -131,7 +131,7 @@ static void CompressWholeBlock(const unsigned char* tiles, unsigned numtiles, F&
 }
 
 template<typename F>
-void CompressTilesWithBlockSplitting(const unsigned char* tiles, unsigned numtiles, F&& PutBits)
+static void CompressTilesWithBlockSplitting(const unsigned char* tiles, unsigned numtiles, F&& PutBits)
 {
     // Create a directed acyclic graph from all starting positions
     // to blocks of different lengths, where the length of the arc
@@ -207,7 +207,7 @@ void CompressTilesWithBlockSplitting(const unsigned char* tiles, unsigned numtil
 }
 
 template<typename F>
-void CompressTiles(const unsigned char* tiles, unsigned numtiles, F&& PutByte)
+static void CompressTiles(const unsigned char* tiles, unsigned numtiles, F&& PutByte)
 {
     unsigned char bitBuffer = 0x01;
     auto PutBits = [&](unsigned value, unsigned numbits) -> unsigned
@@ -236,16 +236,13 @@ static void DecompressTiles(const unsigned char* data, int bytesremain, std::vec
     {
         if(BitCount & 0x10000u)
         {
-            if(bytesremain-- <= 0) return 0;
+            if(bytesremain-- <= 0) { BitCount = 0x100u; return 0; }
             BitCount = *data++ | 0x100u;
         }
         return (BitCount <<= 1) & 0x100u;
     };
-    auto Get2Bits = [&]() -> unsigned
-    {
-        unsigned r = GetBit();
-        return r*2 + GetBit();
-    };
+    auto Get2Bits = [&]() { unsigned r = GetBit(); return r*2 + GetBit(); };
+    //
     unsigned num_tiles = bytesremain-- ? *data++ : 0;
     if(!quiet) std::printf("Decoding %u tiles...\n", num_tiles);
     unsigned char Count[4], Next0[4]{0,0,0,0}, Next1[4]{0,0,0,0}, Next2[4]{0,0,0,0};
