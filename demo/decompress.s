@@ -3,14 +3,14 @@ EXTENDED_FORMAT=1
 
 .segment "ZEROPAGE"
 ; Global temporaries
-Count:           .byte 0,0,0,0 ; 4 bytes, each is a 2-bit integer
-Next:            .byte 0,0,0,0 ; 4 bytes, each encodes three 2-bit integers
-BitBuffer:	 .byte 0       ; 1 byte, used by ReadBit
+Count:           .res 4 ; 4 bytes, each is a 2-bit integer
+Next:            .res 4 ; 4 bytes, each encodes three 2-bit integers
+BitBuffer:	 .res 1       ; 1 byte, used by ReadBit
 
 ; Temporaries used during tile decoding
-RowsRemaining:   .byte 0
-Plane0:          .byte 0       ; 8 bits (1 byte)
-Plane1:          .byte 0       ; 8 bits (1 byte)
+RowsRemaining:   .res 1
+Plane0:          .res 1       ; 8 bits (1 byte)
+Plane1:          .res 1       ; 8 bits (1 byte)
 
 ; Temporaries used during color extraction
 ; Reuses tile decoding temporaries,
@@ -26,7 +26,9 @@ NextWork         = Next+0          ; workbench for Next,X
 
 .export DecompressTokumaru
 DecompressTokumaru:
-	; Input: SourcePtr = pointer to input data
+	; Input:  SourcePtr = pointer to input data
+	; Output: SourcePtr = pointer to first byte after input data
+
 	; Data will be written to $2007.
 	; Clobbers: A,X,Y,C,ZN,V
 	lda #$80
@@ -39,10 +41,29 @@ DecompressTokumaru:
 	bne :+
 	inc SourcePtr+1
 :
+
+.macro Read2Bits
+;	; Read 2 bits from input
+;	; Output: A = value (0-3); 6 high bits are undefined
+;	; Clobbers: C, ZN
+;	; Cost:
+;	;    1536 out of 2048 times: 36 cycles
+;	;     510 out of 2048 times: 69 cycles
+;	;       2 out of 2048 times: 78 cycles
+;	; Average: 44.26 cycles
+;	; Minimum: 36 cycles
+;	; Maximum: 78 cycles
+	jsr ReadBit
+	rol a
+	jsr ReadBit
+	rol a
+.endmacro
+
+
 @BeginBlock:
 	ldx #3 ; Color counter
 @nextcolor:
-	jsr Read2Bits
+	Read2Bits
 	and #3
 	sta Count,x
 	beq @colorcounter
@@ -98,21 +119,28 @@ DecompressTokumaru:
 	dex
 	bpl @nextcolor
 
+
+	; X = $FF
 	; Clear the "previous" tile row
 	inx ;ldx #0
 	stx Plane0
 	stx Plane1
+
+
+
+	; First: X=0,       A=unknown, Y=unknown, Z=true, N=false, C=unknown
+	; Other: X=unknown, A=unknown, Y=unknown, ZN=unknown, C=false
 @BeginTile:
 	; Read 8 rows
-	lda #8
-	sta RowsRemaining
+	sec
+	ror RowsRemaining ; When LSR clears this bit, 8 rows have been completed
 @nextrow:
 	; if(ReadBit()) goto RowIsDone;
 	jsr ReadBit
 	bcs @row_completed
 	; Read 8 pixels
 	; Read the color of the first pixel, and draw it
-	jsr Read2Bits
+	Read2Bits
 	ldx #1
 	stx Plane1 ; When ROL puts this into carry, 8 pixels have been completed
 	bne @putpixel
@@ -165,8 +193,10 @@ DecompressTokumaru:
 	sta $2007
 	lda Plane1
 	pha
-	dec RowsRemaining
+	lsr RowsRemaining
 	bne @nextrow
+	; When RowsRemaining=0, carry is set by LSR
+
 	; Once the whole tile has been extracted,
 	; send also the second plane.
 	; To save RAM, the second plane was put into stack, in reverse order.
@@ -195,7 +225,6 @@ DecompressTokumaru:
 	beq EndCompress
 	jsr ReadBit
 	bcc @BeginTile
-	;bcs @BeginBlock
 	jmp @BeginBlock
 
 ; ReadBit must be in same segment, because we use relative branch to EndCompress.
@@ -232,27 +261,6 @@ EndCompress:
 rbwrap:	  inc SourcePtr+1
 	  bne :- ; Assumed to be unconditional.
 
-.export Read2Bits
-Read2Bits:
-	; Read 2 bits from input
-	; Output: A = value (0-3); 6 high bits are undefined
-	; Clobbers: C, ZN
-	; Cost:
-	;    1536 out of 2048 times: 36 cycles
-	;     510 out of 2048 times: 69 cycles
-	;       2 out of 2048 times: 78 cycles
-	; Average: 44.26 cycles
-	; Total average cost with JSR+RTS: 56.26 cycles
-	; Minimum: 48 cycles
-	; Maximum: 90 cycles
-	jsr ReadBit
-	rol a
-	jsr ReadBit
-	rol a
-	rts
-
-;Fail1:	.byte 0,1 ; brk 1
-;	@x:jmp @x
 
 	@e=DecompressTokumaru+$F0
 	.assert * < @e, warning, .sprintf("Decompressor is %d bytes larger than Tokumaru's code",*-@e)

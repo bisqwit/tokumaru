@@ -1,5 +1,16 @@
+#include <iostream>
+
 static constexpr char graphics[] = R"(
 $30      $31      $32      $33      $34      $35      $24      $25      $26      $27
+:        :        : .. ..  : .. ..  :        : .. ..  :        :        :        :        |
+:        :        : .. ..  : .. ..  :        : .. ..  :        :        :        :        |
+: .......:......  : .. ....:... ..  :........: .. ..  :        :        :   .    :   cc   |
+: ..     :    ..  : ..     :    ..  :        : .. ..  :   c    :   c    :  .#.   :  c##c  |
+: .. ....:... ..  : .......:......  :........: .. ..  :        :        :   .    :   cc   |
+: .. ..  : .. ..  :        :        :        : .. ..  :        :        :        :        |
+: .. ..  : .. ..  :        :        :        : .. ..  :        :        :        :        |
+: .. ..  : .. ..  :        :        :        : .. ..  :        :        :        :        |
+$130     $131     $132     $133     $134     $135     $124     $125     $126     $127
 :        :        : .. ..  : .. ..  :        : .. ..  :        :        :        :        |
 :        :        : .. ..  : .. ..  :        : .. ..  :        :        :        :        |
 : .......:......  : .. ....:... ..  :........: .. ..  :        :        :   .    :   cc   |
@@ -62,7 +73,7 @@ $61      $62      $63      $64      $65      $66      $67      $7B      |
 :cc  cc  : cc  cc : cc   c :cc  cc  : cc   c :  cc    :     cc :cc  cc  |
 : .c. c. : .c.c.  :  .c.c  : c.c c. :  c.c.  : c.c.   :.    c. : .c. c. |
 :        :        :        :        :        :        : .....  :        |
-$68      $69      $6A      $6B      $6C      $6D      $6E      $6F    
+$68      $69      $6A      $6B      $6C      $6D      $6E      $6F   ;  
 :###     :  ###   :  ###   :###     :  ###   :        :        :        !
 : ##     :        :        : ##  ## :   ##   :######  :## ###  :  ####  !
 : #c#c#  :  #c#   :  #c#   : #c  #  :   #c   :#c # #c : #c  #c : #c  #c !
@@ -71,7 +82,7 @@ $68      $69      $6A      $6B      $6C      $6D      $6E      $6F
 : cc  cc :   cc   :   cc   : cc  cc :   cc   :cc c cc : cc  cc : cc  cc !
 :.c.c c.c:  .c.c  :   c.   :c.c. ...:  c.c.  :.c . .c.:.c. c.c.:  c.c.  !
 :        :        : ...    :        :        :        :        :        !
-$70      $71      $7C      $72      $73      $74      $75      $76
+$70      $71      $7C      $72      $73      $74      $75      $76 ;
 :        :        :##  ##  :        :        :  ##    :        :        !
 :######  : ###### :        :### ##  :  ####  : ####   :### ### :###  ## !
 : #c  #c :#c  #c  : #c#c   : #c# #c : #c   # :  #c    : #c  #c : #c   # !
@@ -80,7 +91,7 @@ $70      $71      $7C      $72      $73      $74      $75      $76
 : ccccc  : ccccc  :cc  cc  : cc     : c   cc :  cc    : cc ccc :   cc   !
 : c.     :    c.  : c.c c. :c.c.    :  c.c.  :   c.   :  c.c c.:   .    !
 :...     :    ... :        :        :        :        :        :        !
-$77      $78      $79      $7A      $7D      $7E      $7F      $60      $0F
+$77      $78      $79      $7A      $7D      $7E      $7F      $60      $0F ;
 :        :        :        :        : ##  ## : ##  ## : ##  ## :  ####  :        !
 :###  ## :### ### :### ### :####### :        :        :        : ##  ## :### ### !
 : #c   # : #c# #  : #c  #  :#    #c :  #c#c  :#c#  #c#:#c# #c# :#c# #c  :#.# #.. !
@@ -92,7 +103,7 @@ $77      $78      $79      $7A      $7D      $7E      $7F      $60      $0F
 
 ; SRAM strings:
 ;ARE YOU SURE?
-$10      $11      $12      $13      $14      $15      $16      $17      $18      $19      $1A
+$10      $11      $12      $13      $14      $15      $16      $17      $18      $19      $1A ;
 :  ccc   :ccc     :     cc : ccc    :        :        :        :        :        :        :   cccc !
 : cc cc  : cc   cc:cc  cccc:  cc  cc:   cccc :   ccc c:c  cccc : ccc cc : ccc  cc:    cccc:  cc  cc!
 :cc   cc : cc  cc : cc  cc :  cc  c :  cc  cc:    cc  :c c   cc:  ccc cc:  cccccc:c  c   c:c c   cc!
@@ -102,7 +113,7 @@ $10      $11      $12      $13      $14      $15      $16      $17      $18     
 :  ccc   :cccc  cc:cc    cc: cccc cc:c  cccc :      c :   ccc c:ccccc   : ccc c c:cc  ccc :cc  cc  !
 :        :        :        :        :        :        :        :        :        :        :        !
 ;CHOOSE SLOT
-$01      $02      $03      $04      $05      $06      $07      $08      $09      $0A      $0B      $0C
+$01      $02      $03      $04      $05      $06      $07      $08      $09      $0A      $0B      $0C   ;
 :....###.:..######:...###..:###.####:########:########:.#######:##...##.:..######:########:########:########!
 :#...####:.#######:#..#####:##..####:########:#######.:.#######:###..###:..######:########:########:########!
 :##...###:.#....##:#..##...:#....##.:...###..:..####..:..##....:###..###:..###...:.#..#...:##..#...:###....#!
@@ -112,7 +123,7 @@ $01      $02      $03      $04      $05      $06      $07      $08      $09     
 :####...#:#..##..#:#..###..:##..##.#:##..#..#:##.####.:.##..##.:.##..###:..##..##:#.#..##.:.##..##.:.#..###.!
 :#####.##:##...#..:....#...:.##..##.:...###..:..######:..##...#:......#.:...##...:.#...#..:.....#..:..#....#!
 ;YES
-$1B      $1C      $1D      $1E      $1F
+$1B      $1C      $1D      $1E      $1F ;
 :###cc##c:cccccccc:c###cc##:#cc##cc#:#ccccccc!
 :c##cc#cc:####c##c:cc##ccc#:#ccccccc:cccccccc!
 :c##c#ccc:c###cc#c:cc##ccc#:#ccc####:cccccccc!
@@ -121,80 +132,13 @@ $1B      $1C      $1D      $1E      $1F
 :c##c###c:cccc#ccc:cc##ccc#:#cc##cc#:#ccccccc!
 :###cc###:c#c#cccc:#####c##:##cc###c:##cccccc!
 :cccccccc:c##ccccc:cccccccc:cccccccc:cccccccc!
-$80      $81      $82      $83      $84      $85      $86      $87      $88      $89      $8A      $8B      $8C      $8D      $8E      $8F
-:# # # # :# # # # :# # # # :        :      # :# # # # :# # # # :# # # # :c#c#c#c#:c#c#c#c#:c#c#c#c#:c#c#c#c#:c#c#c#c#:c#c#c#c#:.#c#c#c#:c#. ..c#!!
-: #   #  : #   #  : #      :        :        : #   #  : #   #  : #   #  :.c.c.c.c:.c.c.c.c:.c.c.c.c:.c......:........:........:........:.... ...!!
-:# # # # :# # # # :# #     :        :        :  # # # :# # # # :# # # # :c#c#c#c#:c#c#c#c#:c#c#c#.#:c . c#.#:c#c#c#c#:c#c#c#c#:c#.#.#. :.#. . .#!!
-:   #    :   #    :        :        :        :   #    :   #    :   #    :.c.ccccc:cc.c.c.c:.c.c.##.:# #.....:........:........:........:.. . . .!!
-:# # # # :# # # # :        :        :        :      # :# # # # :# # # # :cccccccc:ccc#c#c#:c#c#. . :. .#c#. :.#c#c#c#:c .#c#c#:c#c#c#c#:c#.#. . !!
-: #   #  : #   #  :        :        :        :        : #   #  : #   #  :cccccccc:cc.ccc.c:cc.. .#.:  ##    :#.#.#.#.:#.......:........:......#.!!
-:# # # # :# # #   :        :        :        :        :# # # # :# # # # :cccccccc:c#c#c#c#:c c . . :. . . . :. . . .#:c#c#c#c#:c#c#c#c#:c#c#c#.#!!
-:       #:        :       .:        :        :        :       #:       #:cc.c.c.c:.c.c.c.c:#.#. .#.:###.#.#.: . .   .:##...c..:........:........!!
-$90      $91      $92      $93      $94      $95      $96      $97      $98      $99      $9A      $9B      $9C      $9D      $9E      $9F
-:# # # # :# #     :      . :.       :        :        :  # # # :# # # # :c#c#c#c#:c#c#c#c#:. . .#c#:.#c#c . :. . . . :. . c.c#:c#c#c#c#:c#c#c..#!!
-: #   #  : #      :        :        :        :        :     #  : #   #  :.c.c.c.c:.c.c.c..:#..c..#.:#.#...#.: .      :   #....:........:........!!
-:# # # # :#       :        :.       :    .   :        :    # # :# # # # :c#c#c#c#:c#c#c#c :.#c#c . :. . . . :. . . . :. . .#c#:c#c#c#c#:c#c#c#.#!!
-:   #    :        :       .: .      :        :        :   #    :   #    :.c.c.c.c:.c.c.c#.:#....c..:....#.#.: .      :     ...:........:........!!
-:# # # # :        :    .   :.   .   :        :        :    # # :# # # # :c#c#c#c#:c#c#. . :.#c#c#c#:c#c . . :. . . . :. . . .#:c#c#c#c#:c#c#c#c#!!
-: #   #  :        : . . . .: . . . .:   . .  :        :     #  : #   #  :.c.c.c.c:.c.##...:........:....#. .: .      :       .:........:........!!
-:# # # # :        :. . . . :. . . . :.       :        :      # :# # # # :c#c#c#c#:c#c . c#:c#c#c#c#:. . . . :. . . . :. . . . :.#c#c#c#:.#.#.#c#!!
-:        :       .: . . .  :   .    : . .    :        :       #:       #:.c.c.c.c:.c#. ...:........:..#.#.  : . . . .:        :#.......:........!!
-$A0      $A1      $A2      $A3      $A4      $A5      $A6      $A7      $A8      $A9      $AA      $AB      $AC      $AD      $AE      $AF
-:# # # # :      . :. . . . :    .   :. . .   :        :      # :# # # # :c#c#c#c#:c c#. c#:c#c#. . :. . . . :. . . . :. . . . :.#c#c#c#:c#c#c#.#!!
-: #   #  :       .: . . . .:     .  :   . . .:        :        : #   #  :.c.c.c.c:....#...:....#.##: . . . .: .   .  :   .    : .......:........!!
-:# # #   :      . :. .   . :.     . :. . . . :. .     :        :# # # # :c#c#c#c#:c#c .#c#:c#.#c.c :. . . . :. . . . :. . . . :. c#c#c#:c#c#c#c#!!
-:   #    :     . .: . .   .:   . . .: .   .  : .      :        :   #    :.ccc.c.c:.c#.....:..#c.c.c:.c#c#. .:#. .#.#c:#  .    : .......:........!!
-:# # #   :      . :. . .   :.   . . :. .     :  .     :        :# # # # :c#c#c#c#:c#. . . :. . c.c.:c.. . . :... ... :c . . . :. c#c#c#:c#.#c#.#!!
-: #   #  :     . .: .     .: .   . #:#. . .  : . .    :        : #   #  :.c.ccc.c:.c#.#. .: .#c.c.c:.c.c...c:....#..c:.c#.    : .......:........!!
-:# # #   :      . :. . . . :. . . . :. . . . :  . .   :        :# # # # :c#c#c#c#:c#. . . :. . c.c.:c.c.c.c.:c#c.c#c.:c .#. . :. c#.#c#:.#.#c#.#!!
-:        :     . .: . . . c:.c.c.# .: . . . .: # .    :        :       #:.c.c.c.c:.c#     :   ..c.c:.c.c.c.c:.c.c.c.c:.c#.#. .: .......:........!!
-$B0      $B1      $B2      $B3      $B4      $B5      $B6      $B7      $B8      $B9      $BA      $BB      $BC      $BD      $BE      $BF
-:# # #   :      . :. . . ..:c.c.c.. :c . c ..:..c . . :        :  # # # :c#c#c#c#:c#. . . :. .#c.c.:c.c.c.c.:c.c.c.c.:c.c#. . :. c#c#c#:c#.#.#.#!!
-: #   #  :     . .: . . c c:.c.c.c.#:.c . c #: ..# .  :        : #   #  :.....c.c:.c#     : .#c.c.c:.c.c.c.c:.c.c.c.c:.c.c.. .: .......:......#.!!
-:# # #   :      . :. . ... :. . ..c.:c.. . . :. c .   :        :  # # # :c#.#c#c#:c#. . . :. ..c.c.:c.c.c.c.:c.c.c.c.:c.c.c . :. c#c#c#:c#c#c#. !!
-:   #    :     . .: . . .#c:.c.. #.c:.c#. #.c:.# . .  :        :   #    :.....c.c:.c#  . .: ..c.c.c:.c.c.c.c:.c.c.c.c:.c.c.. .: .......:........!!
-:# # #   :      . :. . ..c.:c.c.c.c.:c.c c.c.:c.c   . :        :  # # # :.#.#c#c#:c#. . . :. c.c#. :. c.c.c.:c.c.c.. :.#..c . :.#c#c#c#:c#c#c#.#!!
-: #   #  :     . .: . c.c.c:.c.c.c.c:.c.c.c.c:.c.#    :        : #   #  :.....c.c:.c## . .: ..c.. .: .#.#..c:.c..#. .: .#... .:#.......:........!!
-:# # #   :      . :. c.c.c.:c.c.c.c.:c.c.c.c.:c.c .   :        :# # # # :c#.#c#c#:c#c . . :. c.. c :c . . c.:c.c . c :c c#c . :.#c#c#c#:c#c#c#c#!!
-:        :        : ..c.c.c:.c.c.c.c:.c.c.c.c:.c.c    :       #:       #:.....c.c:.c..   .: #.c.c.c:#....c.c:.c.c#...:.c.c..  :###.....:........!!
-$C0      $C1      $C2      $C3      $C4      $C5      $C6      $C7      $C8      $C9      $CA      $CB      $CC      $CD      $CE      $CF
-:# # # # :        :  c.c . :#   c.c.:c.c.. # :  ...   :        :# # # # :c#.#c#c#:c#c . . :. c.c#. :. . ..c.:c.c . . :.#c.c . :.#c#c#c#:c#c#c#c#!!
-: #   #  :     . .:  .c# #.:## .#c.c:.c.##. #: . #    :        : #   #  :...c.c#.:.c#...#.: ..c..#c:###c.c.c:.c...###:..#c..##: .......:........!!
-:# # # # :      . :  c.. c#:# . c.c.:c.c.c ##:.c. .   :      # :# # # # :.#c#c#.#:c#. c .#:. c.c.c.:c .#c.c.:c.c.c#.#:c.c.c . :. c#c#c#:c#c#c#c#!!
-:   #    :     ###:  .c.##c: .#c.c.c:.c.c#.#.:#.#c .  :        :   #    :...c....:.c#...#.:#..c.c.c:...c.c.c:.c.c.c.c:.c.c...#:#.......:........!!
-:# # # # :      . :. c.c.c.:. ..c.c.:c.c.c.. :c.c.. . :      # :# # # # :.#c#c#. :.#. .#.#:c c.c.c.:c.c.c.c.:c.c.c.c.:c.c.c#c :.#c#c#c#:c#.#c#c#!!
-: #   #  :       c:#..c.c.c:.c.c.c.c:.c c.c.c:.c.c#.  :     #  : #   #  :.c.c....:.c##.c#c:...c.c.c:.c.c.c.c:.c.c.c.c:.c.c.c..:#.......:........!!
-:# # #   :      ..:c c.c.c.:c.c.c.c.:c.c.c.c.:c.c..   :      # :# # # # :c#c#c#.#:c#c#..c#:c#c.c.c.:c.c.c.c.:c.c.c.c.:c.c.c.c :.#c#c#c#:c#c#c#.#!!
-:        :       .:#..c.c.c:.c.c.c.c:.c.#.c.c:.c.c    :       #:       #:.c.c....:.c.c#c.c:.c.c.c.c:.c.c.c.c:.c.c.c.c:.c.c.c#.:#.......:........!!
-$D0      $D1      $D2      $D3      $D4      $D5      $D6      $D7      $D8      $D9      $DA      $DB      $DC      $DD      $DE      $DF
-:# # #   :        :  . ..c.:c.c.c.c.:c.c c.c.:c.c..   :      # :# # # # :c#c#.#.#:c#c#c#.#:c#c.c.c.:c.c.c.c.:c.c c.c.:c.c.c . :c#c#c#c#:c#c#c#c#!!
-: #      :        :   c c.c:.c.c.c #:.. #.c.c:.c.c    :     #  : #   #  :#c.c..#.:#.#c#.##:.c.c.c.c:.c.c.c.c:.c...c.c:.c.c..#.:........:........!!
-:# #     :        :  . ..c.:c.c.c.c.:c...c.c.:c.c..   :      # :# # # # :c#c .#. :c c c c :.#c.c.c.:c.c.c.. :c . c.c.:c.c.c .#:c#c#c#c#:c#c#c#c#!!
-:        :        : ....c.c:.c.c.c.c:.c.c.c.c:.c.c    :        :   #    :#c#.#.#.:#.###.#.:#c.c.c.c:.c.c..#.:..#c.c.c:.c.c..#.:........:........!!
-:#       :        :... c.c.:..c.c.c.:c.c.c.c.:..c     :      # :# # # # :c .#. c :. . . . :.#c.c.c.:c#c.c.c.:c.c.c#c :c#c.c . :..c#c#.#:c#c#c.c#!!
-:        :       .:.. ..c.c:.c.c.c.c:.c.c.c.c:.c..    :        : #   #  :..#.#.#.:..## # #:  #c.c.c:...c.c.c:.c.c...c:.c.c.#  : .......:........!!
-:        :      ..:.   ..c.:c.c.c . :c . c.c.:c..     :        :# # # # :. . . . :.#. . . :. ..c.c.:c . . . :. . .#c.:c.c.. . :. .#.#.#:.#c#c#c#!!
-:        :     #..:     #.c:.c.c.##.:.###.c.c:.#      :       #:       #:..#.#.#.:..##    :  #..c.c:.c..#.#.:#.#..c.c:.c.c#.#.:#. .....:........!!
-$E0      $E1      $E2      $E3      $E4      $E5      $E6      $E7      $E8      $E9      $EA      $EB      $EC      $ED      $EE      $EF
-:        :  . . . :    c ..:c.c.c.c.:c.c.c.c.:.       :        :# # # # :.#. . . :.#. . . :. ##c.c.:c.c.c.c.:c.c.c.c.:c.c . c#:.#. c#c#:c#c#c#.#!!
-:       .:#c c.c  :  #  c .:.c.c.c.c:.c.c.c..: c#     :        : #   #  :.. ##.##:#.#.   #:   #.c.c:.c.c.c.c:.c.c.c.c:.c..  #.:#.......:........!!
-:      . :c.. c.c : #c#..# :....c.. :. c.. . :cc.     :        :  # # # :. . . . :.#. . . :. . . . :. . c.c.:c.c.c.c.:c . . .#:c#.#c#c#:c#c#.#.#!!
-:      #c:#c.. c.c:#.cc c .: . c # .: . . . c:cc .    :        :   #    : # # .##: .#.    : .#.#.#.:..###c.c:.c.c.c.c:..#.#  .:..#.....:........!!
-:      c.:. c.. c :. ... c :#   . . :.   . cc:c.##c   :        :    # # :. . .#. :. . . . :.#cccccc:ccc c.c.:c.c.c.c :. . .#. :.#.#c#.#:.#.#. .#!!
-:     c.c:.. c.. .:#. . ccc:c. . . .: . . ..c:cc##cc c:#       :     #  :##  #..#:     ...:#c.ccccc:ccc##.#.:..#.#.#.:.# ##.#.:#.#.....:...... .!!
-:    ..c.:c.. c...:c.c cccc:cc. . . :  . .ccc:cc. cc.#:c       :      # :. # .#. :# . . . :.#c#cccc:ccc . . :. . . .#:. . . c :.#c#c#c#:c#c#.#. !!
-:   #.c.c:##.# c .:###. ccc:cc . . .: . ..ccc:cc ccc#.:cc #    :       #:##   .##: ...#...:#c.ccccc:ccc.#...:........:..   .#.:#.......:........!!
-$F0      $F1      $F2      $F3      $F4      $F5      $F6      $F7      $F8      $F9      $FA      $FB      $FC      $FD      $FE      $FF
-:  ..c.c.:. ... . :  .#cccc:ccc # . :. ccccc :. ..c .#:c.c..   :      # :. # # . :c#. . . :.#c#cccc:ccc .#.#:.#.#.#.#:c#. # . :.#c#c#c#:c#c#c#. !!
-: ..c.c.c:   c   #: . . ccc:cccc . c: ccccc##:#c.c . c:cc.c#   :        :#. #   .:..   .##:#c.ccccc:ccc##...:........:..#c## #:#.#.....:........!!
-:  c.c.c.:. . . . :.cc .#c.:ccccc.. :.#c.. . :ccc . cc:ccc . . :        :. # # .#:c#. . .#:.#c#cccc:ccc .#.#:.#.#.#. :c .cc#. :. . .#c#:c#c#c#c#!!
-: c.c.c.#:   . .##:#ccc###.: ccccccc:#c . ccc:cc . ccc:cc.. c.c:        : .   ##c:.. .#. #:#c.ccccc:ccc.#...:......#c:...ccc.c:..## ##.:........!!
-:....c.. :. . .#c :. ccc.. :.#c.c.c.:c#. ccc.:c . ccc.:c . c.c.:c .     :. . . . :c#c . . :.#c#cccc:ccc .#.#:.#.#.#c.:c cccccc:ccc#c#. :.#. .#c#!!
-:.c . . .:#.   ..c: . ..ccc:#. ##.#.: .#ccc c:#. ccc #: # c.c.c:.c #    :#.#c..#c:.c.c.. #:#c.ccccc:ccc#....:.....c.c:...ccccc:cccccccc:c.#.#.#.!!
-:c.c . c :  .#c . :cc. . cc:c.c . # :c.c.c . :##c . ##:c ..c.c.:c.. .   :ccccc . :c . . . :.#cccccc:ccc c .#:.#. c.c#:. cccccc:cccccccc:ccccc#c#!!
-:.c.c.c..: # .cc#.: ccc# #c:.ccccc c: c c # .:.c# #. c:cc c.c.c:.c###.  :cccc..#.:.c..####: ##.#.#.:###..c.c:...c.c..:#ccccccc:cccccccc:cccccccc!!
-)";
-
+)"
+#include "avatar/finger1.inc"
+#include "avatar/finger2.inc"
+#include "avatar/happycup1.inc"
+#include "avatar/happycup2.inc"
+#include "avatar/helmet.inc"
+;
 
 static constexpr unsigned FindLine(unsigned n)
 {
@@ -203,26 +147,36 @@ static constexpr unsigned FindLine(unsigned n)
         while(p < sizeof(graphics) && graphics[p] != '\n') ++p;
     return p;
 }
+
 static constexpr unsigned FindOffset(unsigned hexcode)
 {
     constexpr char hex[]="0123456789ABCDEF";
-    const char c1 = hex[hexcode>>4], c2 = hex[hexcode&15];
+    const char c0 = hex[hexcode>>8], c1 = hex[(hexcode>>4)&15], c2 = hex[hexcode&15];
     unsigned line = 1, linebegin=0;
     for(unsigned p=0; p < sizeof(graphics); ++p)
     {
         if(graphics[p]=='\n') { linebegin=p+1; ++line; continue; }
-        if(graphics[p]=='$'
-        && graphics[p+1]==c1
-        && graphics[p+2]==c2) return line*65536+(p+1-linebegin);
+        if(graphics[p]=='$')
+        {
+            if(graphics[p+1]==c0
+            && graphics[p+2]==c1
+            && graphics[p+3]==c2) return line*65536+(p+1-linebegin);
+
+            if(c0 == '0'
+            && graphics[p+1]==c1
+            && graphics[p+2]==c2
+            && graphics[p+3]==' ') return line*65536+(p+1-linebegin);
+        }
     }
     return ~0u;
 }
-static constexpr char GetTileChar(unsigned begin, unsigned x,unsigned y)
+
+/*static constexpr char GetTileChar(unsigned begin, unsigned x,unsigned y)
 {
     begin += y*65536 + x;
     unsigned offset = FindLine(begin>>16) + (begin&0xFFFF);
     return offset >= sizeof(graphics) ? ' ' : graphics[offset];
-}
+}*/
 static constexpr unsigned IdentifyTileChar(char c)
 {
     return c=='#' ? 3 : c=='.' ? 1 : c=='c' ? 2 : 0;
@@ -230,6 +184,7 @@ static constexpr unsigned IdentifyTileChar(char c)
 static constexpr unsigned char GetTileByte(unsigned c, unsigned index)
 {
     unsigned begin = FindOffset(c);
+    if(begin == ~0u) return 0x00;
     unsigned shift = index>>3;
 
     // A bit faster alternative
@@ -248,10 +203,10 @@ static constexpr unsigned char GetTileByte(unsigned c, unsigned index)
 #define w8(c) m16(c),m16(c+1),m16(c+2),m16(c+3),m16(c+4),m16(c+5),m16(c+6),m16(c+7)
 #define w64(c) w8(c),w8(c+8),w8(c+16),w8(c+24),w8(c+32),w8(c+40),w8(c+48),w8(c+56)
 
-static constexpr unsigned char TileData[0x1000] = {w64(0),w64(64),w64(128),w64(192)};
+static constexpr unsigned char TileData[0x2000] = {w64(0),w64(64),w64(128),w64(192),
+                                                   w64(0x100),w64(0x140),w64(0x180),w64(0x1C0)};
 
-#include <iostream>
 int main()
 {
-    std::cout.write( (const char*) TileData,0x1000);
+    std::cout.write( (const char*) TileData,0x2000);
 }
