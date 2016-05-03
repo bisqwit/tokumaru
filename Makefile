@@ -1,4 +1,4 @@
-VERSION=1.2.1
+VERSION=1.2.2
 CXXFLAGS=-std=c++14 -Wall -Ofast -fopenmp -Wextra -march=native
 ARCHDIR=archives/
 ARCHFILES=\
@@ -8,6 +8,14 @@ ARCHFILES=\
 	demo/link.cfg \
 	demo/main.s \
 	demo/Makefile \
+	demo/macros.inc \
+	demo/avatar/finger1.inc \
+	demo/avatar/finger2.inc \
+	demo/avatar/happycup1.inc \
+	demo/avatar/happycup2.inc \
+	demo/avatar/helmet.inc \
+	demo/test_page0.bin \
+	demo/test_page1.bin \
 	progdesc.php README
 ARCHNAME=tokumaru-$(VERSION)
 
