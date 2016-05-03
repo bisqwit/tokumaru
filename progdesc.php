@@ -27,6 +27,7 @@ The distribution includes: <ul>
 In theory, the tool can compress any data as long its size
 is a multiple of 16 bytes (size of a NES tile), but it is
 optimized and designed for NES bitmaps.
+It will not do very well with other kinds of data.
 
 ", '1. Copying' => "
 
