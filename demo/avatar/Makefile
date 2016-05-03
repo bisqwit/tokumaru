@@ -1,4 +1,7 @@
-AM=--dc=4 --gamma=2.95 --dm=4x4 --dr=2,1,4
+AM=--dc=4 --gamma=2 --dm=4x4 --dr=3,1,-4 -Dy2 --cie=0 \
+	--transform 'r=(r/256)^0.7*256*1.1-55' \
+	--transform 'g=(g/256)^0.7*256*1.1-55' \
+	--transform 'b=(b/256)^0.7*256*1.1-35'
 
 all: finger1.inc finger2.inc happycup1.inc happycup2.inc helmet.inc
 
@@ -21,7 +24,10 @@ finger2.xpm: finger2.png
 finger2.inc: finger2.xpm convert.sh
 	./convert.sh "$<" 188 > "$@"
 
-AM2=--dc=4 --gamma=2 --dm=4x4 --dr=1 --de 0.25
+AM2=--dc=4 --gamma=2 --dm=4x4 -Dy2 --dr=1 --de 0.25 \
+	--transform 'r=(r/256)^0.8*256*0.8-15' \
+	--transform 'g=(g/256)^0.8*256*0.8-15' \
+	--transform 'b=(b/256)^0.8*256*0.8-15'
 
 happycup1.png: happycup.png Makefile
 	convert "$<" -resize 64x64'!' tmp-"$@"
@@ -32,7 +38,10 @@ happycup1.xpm: happycup1.png
 happycup1.inc: happycup1.xpm convert.sh
 	./convert.sh "$<" 108 > "$@"
 
-AM3=--dc=16 --gamma=4 --dm=4x4
+AM3=--dc=4 --gamma=2 --dm=4x4 -Dy2 --dr=2,4,4 --de 0.5 --cie 94 \
+	--transform 'r=r*0.9-20' \
+	--transform 'g=g*0.9-20' \
+	--transform 'b=b*0.9-20'
 
 happycup2.png: neutralcup.png Makefile
 	convert "$<" -resize 64x64'!' tmp-"$@"
