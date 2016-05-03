@@ -336,7 +336,7 @@ int main(int argc, char** argv)
                         "Usage: tokumaru [OPTION]... [INFILE] [OUTFILE]\n"
                         "    -d         Decompress\n"
                         "    -q         Suppress output\n"
-                        "    -e         Extended format\n"
+                        "    -e         Extended format (permits a smaller decompressor)\n"
                     #ifdef _OPENMP
                         "    -t         Don't use threads\n"
                     #else

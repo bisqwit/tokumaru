@@ -133,6 +133,8 @@ IRQ:	rti
 	nop
     .elseif (n)=3
 	cmp DummyByte
+    .elseif (n)=5
+	inc DummyByte
     .elseif (n)=7
 	php
 	plp
@@ -147,12 +149,14 @@ IRQ:	rti
 	delay_n (n) - (n)/2
     .elseif ((n) <= 289)
 	; overhead: 7+2 = 9
+	; Size: 7 bytes
 	pha
 	 lda #((n)-(25+9))
 	 jsr delay_a_25_clocks
 	pla
     .else
 	; overhead: 7+7+4+4 = 22
+	; Size: 13 bytes
 	pha
 	txa
 	pha
@@ -422,7 +426,7 @@ TilePage1: .incbin "test_page1.bin"
 .segment "NAMETABLE"
 .align $100
 Initial_NameTable:
-  .repeat 2,page
+    .repeat 2,page
 	; Name table
 	;      0123456789ABCDEF0123456789ABCDEF
 	.byte "                                "
@@ -483,7 +487,7 @@ Initial_NameTable:
 	.repeat 64-(8*32/4/4)
 	.byte 0
 	.endrepeat
-  .endrepeat
+    .endrepeat
 
 .segment "PALETTE"
 Initial_Palette:
