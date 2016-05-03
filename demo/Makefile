@@ -7,7 +7,7 @@ make_graphics: graphics.cc
 	g++ -o "$@" "$<" -O0 -std=c++14
 
 test_page0.bin: tokumaru make_graphics
-	./make_graphics | ./tokumaru -16 - "$@"
+	./make_graphics | ./tokumaru -e16 - "$@"
 
 tokumaru: ../tokumaru.cc
 	make -C .. tokumaru

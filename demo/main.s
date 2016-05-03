@@ -167,26 +167,24 @@ StarField:
 StarFieldInit:
 	ldx #0
 :	; Sufficiently random data
+	; Format: Y, Index, Attr, X
 	lda TilePage0,x
 	sta $200,x
-	inx
-	bne :-
-	; Now sanitize the data.
-	; Format: Y, Index, Attr, X
-:	lda $200,x
 	sta $300,x ; backup Y coordinate
-	inx        ; Y done
-	lda $200,x
+	inx
+	lda TilePage0,x
 	and #3
 	ora #$24
-	sta $200,x
-	inx        ; index done
-	lda $200,x
+	sta $200,x ; index
+	inx
+	lda TilePage0,x
 	and #$C3
 	ora #$20   ; behind bg
-	sta $200,x
-	inx        ; attr done
-	inx        ; x done
+	sta $200,x ; attr done
+	inx
+	lda TilePage0,x
+	sta $200,x ; x done
+	inx
 	bne :-
 	rts
 

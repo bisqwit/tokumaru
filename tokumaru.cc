@@ -38,7 +38,8 @@
 #endif
 
 static unsigned compressionlevel = 5;
-static bool threads = true;
+static bool threads  = true;
+static bool extended = false;
 static std::FILE* diagnostics = nullptr;
 
 // Extract one pixel from a tile.
@@ -123,7 +124,7 @@ static void CompressWholeBlock(const unsigned char* tiles, unsigned numtiles, F&
                 {
                     unsigned prev=c; c=ExtractColor(tp,y,x);
                     if(x == 0) { PutBits(c, 2); continue; }
-                    if(f.count[prev]==0 || PutBits(c == prev, 1)
+                    if(f.count[prev]==0 || PutBits((c == prev)^extended, 1)!=extended
                     || f.count[prev]==1 || !PutBits(c != f.next[prev][0], 1)
                     || f.count[prev]==2 || !PutBits(c != f.next[prev][1], 1)) continue;
                 }
@@ -269,7 +270,7 @@ read_tiles:
             for(unsigned c=0, x=0; x<8; ++x)
             {
                 c = (x==0) ? Get2Bits()
-                  : (Count[c]==0 ||  GetBit()) ? c
+                  : (Count[c]==0 ||  GetBit()!=extended) ? c
                   : (Count[c]==1 || !GetBit()) ? Next0[c]
                   : (Count[c]==2 || !GetBit()) ? Next1[c]
                   :                              Next2[c];
@@ -307,6 +308,9 @@ int main(int argc, char** argv)
                 case 'd':
                     decompress = true;
                     break;
+                case 'e':
+                    extended = true;
+                    break;
                 case 'q':
                     diagnostics = nullptr;
                     break;
@@ -332,6 +336,7 @@ int main(int argc, char** argv)
                         "Usage: tokumaru [OPTION]... [INFILE] [OUTFILE]\n"
                         "    -d         Decompress\n"
                         "    -q         Suppress output\n"
+                        "    -e         Extended format\n"
                     #ifdef _OPENMP
                         "    -t         Don't use threads\n"
                     #else
