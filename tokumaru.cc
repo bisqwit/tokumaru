@@ -38,8 +38,8 @@
 #endif
 
 static unsigned compressionlevel = 5;
-static bool quiet   = false;
 static bool threads = true;
+static std::FILE* diagnostics = nullptr;
 
 // Extract one pixel from a tile.
 static unsigned ExtractColor(const unsigned char* tile, unsigned y, unsigned x)
@@ -140,7 +140,7 @@ static void CompressTilesWithBlockSplitting(const unsigned char* tiles, unsigned
 
     const unsigned MaxLeap = 1u << compressionlevel;
 
-    if(!quiet) std::printf("Creating compression benchmark... ");
+    if(diagnostics) std::fprintf(diagnostics, "Creating compression benchmark... ");
     #pragma omp parallel for schedule(static) if(threads)
     for(unsigned begin=0; begin<numtiles; ++begin)
     {
@@ -148,10 +148,10 @@ static void CompressTilesWithBlockSplitting(const unsigned char* tiles, unsigned
         #ifdef _OPENMP
         tn = omp_get_thread_num(); nt = omp_get_num_threads();
         #endif
-        if(tn == 0 && !quiet)
+        if(tn == 0 && diagnostics)
         {
-            std::printf("%6.2f%%\b\b\b\b\b\b\b", (begin+1)*100.0/double(numtiles/nt));
-            std::fflush(stdout);
+            std::fprintf(diagnostics, "%6.2f%%\b\b\b\b\b\b\b", (begin+1)*100.0/double(numtiles/nt));
+            std::fflush(diagnostics);
         }
         for(unsigned length=std::min(MaxLeap,numtiles-begin); length>0; --length)
         {
@@ -161,7 +161,7 @@ static void CompressTilesWithBlockSplitting(const unsigned char* tiles, unsigned
             compress_tree[begin*numtiles + length] = bits;
         }
     }
-    if(!quiet) std::printf("\n");
+    if(diagnostics) std::fprintf(diagnostics, "\n");
 
     // Figure out the shortest path through that graph (use Dijkstra's algorithm)
     struct Record { unsigned distance=~0u, previous=~0u; bool visited=false; };
@@ -244,7 +244,7 @@ static void DecompressTiles(const unsigned char* data, int bytesremain, std::vec
     auto Get2Bits = [&]() { unsigned r = GetBit(); return r*2 + GetBit(); };
     //
     unsigned num_tiles = bytesremain-- ? *data++ : 0;
-    if(!quiet) std::printf("Decoding %u tiles...\n", num_tiles);
+    if(diagnostics) std::fprintf(diagnostics, "Decoding %u tiles...\n", num_tiles);
     unsigned char Count[4], Next0[4]{0,0,0,0}, Next1[4]{0,0,0,0}, Next2[4]{0,0,0,0};
 read_colors:
     for(unsigned A,B,C,n, c=4; c-- > 0; Count[c] = n)
@@ -253,8 +253,8 @@ read_colors:
         n = Get2Bits();
         if(!n) continue;
         // Read the pivot color
-        A = GetBit() ? 2 + GetBit() : 1;
-        if(c >= A) --A;
+        A = GetBit() ? 1 + GetBit() : 0;
+        A += !(A < c);
         // Calculate the two other colors, that are neither c nor A
         for(B = 0;   B==A || B==c; ++B) {}
         for(C = B+1; C==A || C==c; ++C) {}
@@ -279,21 +279,27 @@ read_tiles:
     output.insert(output.end(), plane2+0, plane2+8);
     if((!num_tiles && bytesremain >= 1) || num_tiles-- > 1)
         { if(GetBit()) goto read_colors; else goto read_tiles; }
-    if(!quiet) std::printf("%u bytes produced, %d bytes remain\n", unsigned(output.size()), bytesremain);
+    if(diagnostics) std::fprintf(diagnostics, "%u bytes produced, %d bytes remain\n", unsigned(output.size()), bytesremain);
 }
+
+#include <unistd.h> // isatty
 
 int main(int argc, char** argv)
 {
     std::vector<unsigned char> input;
     std::vector<unsigned char> output;
     bool decompress = false;
+    bool force      = false;
+    diagnostics = stdout;
+
     if(argc==1)
     {
-        std::printf("Usage: tokumaru [OPTION]... [INFILE] [OUTFILE]\n"
-                    "Try    %s -h\n", argv[0]);
+        std::fprintf(stderr,
+            "Usage: tokumaru [OPTION]... [INFILE] [OUTFILE]\n"
+            "Try    %s -h\n", argv[0]);
         return 0;
     }
-    while(argv[1][0] == '-')
+    while(argv[1][0] == '-' && argv[1][1] != '\0')
     {
         for(char*s = argv[1]+1; *s; ++s)
             switch(*s)
@@ -302,10 +308,13 @@ int main(int argc, char** argv)
                     decompress = true;
                     break;
                 case 'q':
-                    quiet = true;
+                    diagnostics = nullptr;
                     break;
                 case 't':
                     threads = false;
+                    break;
+                case 'f':
+                    force = true;
                     break;
                 case '0': case '1': case '2': case '3':
                 case '4': case '5': case '6': case '7':
@@ -319,7 +328,7 @@ int main(int argc, char** argv)
                 case '-':
                     break;
                 case 'h':
-                    std::printf(
+                    std::fprintf(diagnostics,
                         "Usage: tokumaru [OPTION]... [INFILE] [OUTFILE]\n"
                         "    -d         Decompress\n"
                         "    -q         Suppress output\n"
@@ -339,35 +348,66 @@ int main(int argc, char** argv)
         ++argv;
     }
 
-    std::FILE* fp = std::fopen(argv[1], "rb");
+    bool use_stdin = argv[1][0]=='\0' || (argv[1][0]=='-'&&argv[1][1]=='\0');
+    bool use_stdout = argv[2][0]=='\0' || (argv[2][0]=='-'&&argv[2][1]=='\0');
+
+    if(diagnostics && use_stdout) diagnostics = stderr;
+
+    if(!argv[2])
+    {
+        use_stdout = true;
+        if(!force && !decompress && isatty(1))
+        {
+            std::fprintf(stderr,
+                "tokumaru: compressed data not written to a terminal. Use -f to force compression.\n"
+                "For help, type: tokumaru -h\n");
+            return 2;
+        }
+    }
+
+    std::FILE* fp = use_stdin ? stdin : std::fopen(argv[1], "rb");
     if(!fp) { std::perror(argv[1]); return 1; }
-    std::fseek(fp, 0, SEEK_END);
-    input.resize(std::ftell(fp));
-    std::rewind(fp);
-    std::fread(&input[0], 1, input.size(), fp);
+    if(std::fseek(fp, 0, SEEK_END) >= 0)
+    {
+        input.resize(std::ftell(fp));
+        std::rewind(fp);
+        std::fread(&input[0], 1, input.size(), fp);
+    }
+    else
+    {
+        for(;;)
+        {
+            unsigned tail = input.size(), increment = 8192;
+            input.resize(tail+increment);
+            unsigned got = std::fread(&input[tail], 1, increment, fp);
+            if(got < increment)
+            {
+                input.resize(tail+got);
+                break;
+            }
+        }
+    }
     std::fclose(fp);
+
     if(decompress)
         DecompressTiles(&input[0], input.size(), output);
     else
         CompressTiles(&input[0], input.size()/16, [&](unsigned char c) { output.push_back(c); });
 
-    if(argv[2])
-    {
-        std::FILE* fp = std::fopen(argv[2], "wb");
-        if(!fp) { std::perror(argv[2]); return 2; }
-        std::fwrite(&output[0], 1, output.size(), fp);
-        std::fclose(fp);
-    }
+    fp = use_stdout ? stdout : std::fopen(argv[2], "wb");
+    if(!fp) { std::perror(argv[2]); return 2; }
+    std::fwrite(&output[0], 1, output.size(), fp);
+    std::fclose(fp);
 
-    if(!quiet)
+    if(diagnostics)
     {
         if(decompress)
-            std::printf("%u tiles (%u bytes) decompressed into %u bytes\n",
+            std::fprintf(diagnostics,"%u tiles (%u bytes) decompressed into %u bytes\n",
                 input[0],
                 unsigned(input.size()),
                 unsigned(output.size()));
         else
-            std::printf("%u tiles (%u bytes) compressed into %u bytes\n",
+            std::fprintf(diagnostics,"%u tiles (%u bytes) compressed into %u bytes\n",
                 unsigned(input.size()/16),
                 unsigned(input.size()),
                 unsigned(output.size()));

@@ -2,7 +2,7 @@
 ; Extracted from tokumaru_tile_compression.7z
 ; Copyright presumably Tokumaru ?
 
-
+.org 0
 	;variables in page 0
 	.enum BaseMemory0
 
