@@ -2,22 +2,22 @@ EXTENDED_FORMAT=1
 ; ^ Set to 1 if you compressed with -e. This results in a smaller decompressor.
 
 .segment "ZEROPAGE"
-; Global temporaries
+; Global temporaries.
 Count:           .res 4 ; 4 bytes, each is a 2-bit integer
 Next:            .res 4 ; 4 bytes, each encodes three 2-bit integers
-BitBuffer:	 .res 1       ; 1 byte, used by ReadBit
+BitBuffer:	 .res 1 ; 1 byte, used by ReadBit
 
-; Temporaries used during tile decoding
+; Temporaries used during tile decoding.
 RowsRemaining:   .res 1
-Plane0:          .res 1       ; 8 bits (1 byte)
-Plane1:          .res 1       ; 8 bits (1 byte)
+Plane0:          .res 1 ; 8 bits (1 byte)
+Plane1:          .res 1 ; 8 bits (1 byte)
 
-; Temporaries used during color extraction
+; Temporaries used during color extraction.
 ; Reuses tile decoding temporaries,
-; as they're not needed at the same time
-ColorN           = Plane0          ; current color
-ColorA           = Plane1          ; pivot color
-NextWork         = Next+0          ; workbench for Next,X
+; as they're not needed at the same time.
+ColorN         = Plane0 ; current color
+ColorA         = Plane1 ; pivot color
+NextWork       = Next+0 ; workbench for Next,X
 
 ; Inputs:
 .importzp SourcePtr
@@ -164,6 +164,7 @@ DecompressTokumaru:
 	dey
 	bne :-
 .else
+
 
 	jsr ReadBit
 	bcs @putpixel
