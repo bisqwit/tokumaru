@@ -1,3 +1,6 @@
+EXTENDED_FORMAT=1
+; ^ Set to 1 if you compressed with -e. This results in a smaller decompressor.
+
 .segment "ZEROPAGE"
 ; Global temporaries
 Count:           .byte 0,0,0,0 ; 4 bytes, each is a 2-bit integer
@@ -95,7 +98,14 @@ DecompressTokumaru:
 	dey
 	beq :-
 	sta Next,x
+
 @colorcounter:
+	txa
+	cmp #2
+	rol Next,x
+	lsr a
+	rol Next,x
+
 	dex
 	bpl @nextcolor
 
@@ -103,8 +113,59 @@ DecompressTokumaru:
 	inx ;ldx #0
 	stx Plane0
 	stx Plane1
-	beq @BeginTile
+@BeginTile:
+	; Read 8 rows
+	lda #8
+	sta RowsRemaining
+@nextrow:
+	; if(ReadBit()) goto RowIsDone;
+	jsr ReadBit
+	bcs @row_completed
+	; Read 8 pixels
+	; Read the color of the first pixel, and draw it
+	jsr Read2Bits
+	ldx #1
+	stx Plane1 ; When ROL puts this into carry, 8 pixels have been completed
+	bne @putpixel
 
+@process_next_pixel:
+	; Process the next pixel.
+	; X = color of previous pixel
+	; A = next pixel
+	; if(Count==0 || ReadBit()==1) choose X
+	lda Next,x   ; Put X in low 2 bits
+	ldy Count,x
+	beq @putpixel
+
+.if EXTENDED_FORMAT=1
+
+:	jsr ReadBit
+	bcc @putpixel
+	lsr a      ; put next0 in low 2 bits
+	lsr a
+	dey
+	bne :-
+.else
+
+	jsr ReadBit
+	bcs @putpixel
+:	lsr a      ; put next0 in low 2 bits
+	lsr a
+	dey
+	beq @putpixel
+	jsr ReadBit
+	bcs :-
+
+.endif
+
+@putpixel:
+	and #3 ; Required only because X is used as an index
+	tax    ; Convert the color into index before changing A
+	lsr a
+	rol Plane0
+	lsr a
+	rol Plane1
+	bcc @process_next_pixel
 @row_completed:
 	; Arrived here with C=set
 	; Send the current row.
@@ -143,60 +204,10 @@ DecompressTokumaru:
 	dec $101,x ;TilesRemaining (accomplishes the same as PLA--SEC--SBC#1--PHA)
 	beq EndCompress
 	jsr ReadBit
-	;bcc @BeginTile
-	bcs @BeginBlock
+	bcc @BeginTile
+	;bcs @BeginBlock
+	jmp @BeginBlock
 
-@BeginTile:
-	; Read 8 rows
-	lda #8
-	sta RowsRemaining
-@nextrow:
-	; if(ReadBit()) goto RowIsDone;
-	jsr ReadBit
-	bcs @row_completed
-	; Read 8 pixels
-	lda #1
-	sta Plane1 ; When ROL puts this into carry, 8 pixels have been completed
-	; Read the color of the first pixel, and draw it
-	jsr Read2Bits
-@putpixel:
-	and #3 ; Required only because X is used as an index
-	tax    ; Convert the color into index before changing A
-	lsr a
-	rol Plane0
-	lsr a
-	rol Plane1
-	bcs @row_completed
-	; Process the next pixel.
-	; X = color of previous pixel
-	; A = next pixel
-
-	; if(Count==0 || ReadBit()==1) choose X
-	txa          ; A = X
-	ldy Count,x
-	beq @putpixel
-
-	jsr ReadBit
-	bcs @putpixel
-	; if(Count==1 || ReadBit()==0) choose Next0
-	lda Next,x ; put next0 in low 2 bits
-	dey
-	beq @putpixel
-
-	jsr ReadBit
-	bcc @putpixel
-	; if(Count==2 || ReadBit()==0) choose Next1
-	lsr a      ; put next1 in low 2 bits
-	lsr a
-	dey
-	beq @putpixel
-
-	jsr ReadBit
-	bcc @putpixel
-	; Choose Next2
-	lsr a      ; put next2 in low 2 bits
-	lsr a
-	bpl @putpixel
 
 ; ReadBit must be in same segment, because we use relative branch to EndCompress.
 .export ReadBit

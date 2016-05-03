@@ -1,4 +1,4 @@
-VERSION=1.1.0
+VERSION=1.2.0
 CXXFLAGS=-std=c++14 -Wall -Ofast -fopenmp -Wextra -march=native
 ARCHDIR=archives/
 ARCHFILES=\
@@ -32,8 +32,12 @@ source.zip: tokumaru.cc Makefile algorithm.txt README
 	- DeflOpt "$@"
 
 test:	tokumaru smb1a.dat kirbyu.dat
+	#
 	bash -c 'cmp smb1a.dat  <(./tokumaru smb1a.dat -  | ./tokumaru -d - -)'
 	bash -c 'cmp kirbyu.dat <(./tokumaru kirbyu.dat - | ./tokumaru -d - -)'
+	#
+	bash -c 'cmp smb1a.dat  <(./tokumaru -e smb1a.dat -  | ./tokumaru -ed - -)'
+	bash -c 'cmp kirbyu.dat <(./tokumaru -e kirbyu.dat - | ./tokumaru -ed - -)'
 
 demo/test.nes: demo/decompress.s demo/main.s demo/link.cfg demo/graphics.cc tokumaru demo/main.s
 	make -C demo test.nes
