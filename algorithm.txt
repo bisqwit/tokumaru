@@ -66,6 +66,13 @@ Read-tiles:
           Case 010 when x>0 and ColorCount[Color]>2: Color = NextColor1[Color]
           Case 011 when x>0 and ColorCount[Color]>2: Color = NextColor2[Color]
         Shift Color into Plane0 and Plane1
+      
+      ; Joel Yliluoma's extended format (tokumaru -e)
+      ; reverses the meaning of the first bit, i.e.:
+      ;   When colors=0, the color is not changed, and no bits are read.
+      ;   When colors=1, 0 = not changed, 1 = color0.
+      ;   When colors=2, 0 = not changed, 10 = color0, 11 = color1.
+      ;   When colors=3, 0 = not changed, 10 = color0, 110 = color1, 111 = color2.
 
     // Write out the current row:
     Send 1 byte ⇐ Plane0.

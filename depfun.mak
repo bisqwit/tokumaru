@@ -194,3 +194,11 @@ uninstall${DEPFUN_INSTALL} deinstall${DEPFUN_INSTALL}:
 	install${DEPFUN_INSTALL} \
 	deinstall${DEPFUN_INSTALL} \
 	uninstall${DEPFUN_INSTALL}
+
+git_undo_release:
+	git stash
+	git checkout release
+	git reset --hard release^
+	git checkout master
+	git reset --soft HEAD^
+	git stash pop

@@ -203,7 +203,7 @@ Initial_NameTable:
 	.byte "                                "
 	.byte "   Test successful              "
 	.byte "                                "
-	.byte "   Nametable contents:          "
+	.byte "   CHR-RAM contents:            "
 	.byte "                                "
 	.byte "       044444444444444441       "
 	;
@@ -238,7 +238,7 @@ Initial_NameTable:
 .segment "PALETTE"
 Initial_Palette:
 	;BG
-	.byte $0F,$14,$20,$12
+	.byte $0F,$15,$3D,$12
 	.byte $0F,$11,$21,$31
 	.byte $0F,$06,$16,$26
 	.byte $0F,$1A,$2A,$20

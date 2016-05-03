@@ -7,17 +7,17 @@ Count:           .byte 0,0,0,0 ; 4 bytes, each is a 2-bit integer
 Next:            .byte 0,0,0,0 ; 4 bytes, each encodes three 2-bit integers
 BitBuffer:	 .byte 0       ; 1 byte, used by ReadBit
 
-; Temporaries used during color extraction
-ColorN:          .byte 0           ; current color
-ColorA:          .byte 0           ; pivot color
-NextWork         = Next+0          ; workbench for Next,X
-
 ; Temporaries used during tile decoding
-; Reuses color extraction temporaries,
-; as they're not needed at the same time
 RowsRemaining:   .byte 0
-Plane0           = ColorN      ; 8 bits (1 byte)
-Plane1           = ColorA      ; 8 bits (1 byte)
+Plane0:          .byte 0       ; 8 bits (1 byte)
+Plane1:          .byte 0       ; 8 bits (1 byte)
+
+; Temporaries used during color extraction
+; Reuses tile decoding temporaries,
+; as they're not needed at the same time
+ColorN           = Plane0          ; current color
+ColorA           = Plane1          ; pivot color
+NextWork         = Next+0          ; workbench for Next,X
 
 ; Inputs:
 .importzp SourcePtr
@@ -54,7 +54,6 @@ DecompressTokumaru:
 	;     0,10,11      3          0,1,2
 	;   A = ReadBit() ? 2 + ReadBit() : 1
 	;   A -= !(x < A)
-	stx ColorN
 	lda #1
 	jsr ReadBit
 	bcc :+
@@ -65,47 +64,37 @@ DecompressTokumaru:
 	bcc :+
 	; carry is set
 	sbc #1
-:	; Save A in Next,x
-	ldy #255
-	ldx #3
+:	; Save A in NextWork
 	sta ColorA
-	bne @store
-	;   p = 0; while(p==A || p==x) ++p;  B = p;
-:	 iny
-	 cpy ColorA
-	 beq :-
-	 cpy ColorN
-	 beq :-
-	 ; Store in Next,x
-	 tya
-@store:	 lsr a
-	 ror NextWork
-	 lsr a
-	 ror NextWork
+	stx ColorN
+	ldy #255
+	.byte $C9 ;cmp #
+@storey:; Store in NextWork
+	tya
+@store:	lsr a
+	ror NextWork
+	lsr a
+	ror NextWork
 	;   ++p;   while(p==A || p==c) ++p;  C = p;
-	dex
-	bne :-
-
-	ldx ColorN
-	ldy Count,x
-	lda NextWork
-
-	dey
-:	lsr a
-	lsr a
-	; Next,x now contains: --221100
-	; If Count[x]=2, remove 00 from list
-	dey
+	;   p = 0; while(p==A || p==x) ++p;  B = p;
+:	iny
+	cpy ColorA
 	beq :-
-	sta Next,x
+	cpy ColorN
+	beq :-
+	cpy #4
+	bne @storey
 
-@colorcounter:
-	txa
-	cmp #2
-	rol Next,x
+	lda NextWork
+	ldy Count,x
+	cpy #2
+	bne :+
+	; If Count[x]=2, remove 00 from list
 	lsr a
-	rol Next,x
-
+	lsr a
+:	and #$FC ; Keep two low bits as 0
+@colorcounter:
+	sta Next,x
 	dex
 	bpl @nextcolor
 
@@ -133,7 +122,8 @@ DecompressTokumaru:
 	; X = color of previous pixel
 	; A = next pixel
 	; if(Count==0 || ReadBit()==1) choose X
-	lda Next,x   ; Put X in low 2 bits
+	txa
+	ora Next,x   ; Keep X in low 2 bits
 	ldy Count,x
 	beq @putpixel
 
@@ -208,7 +198,6 @@ DecompressTokumaru:
 	;bcs @BeginBlock
 	jmp @BeginBlock
 
-
 ; ReadBit must be in same segment, because we use relative branch to EndCompress.
 .export ReadBit
 ReadBit:
@@ -221,6 +210,8 @@ ReadBit:
 	;       1 out of 2048 times: 46 cycles  (1 of 8, 1 of 256)
 	; Average: 8.75 cycles
 	; Total average cost with JSR+RTS: 20.75 cycles
+	; Minimum: 16 cycles
+	; Maximum: 58 cycles
 	asl BitBuffer
 	beq :+
 	rts
@@ -241,11 +232,19 @@ EndCompress:
 rbwrap:	  inc SourcePtr+1
 	  bne :- ; Assumed to be unconditional.
 
+.export Read2Bits
 Read2Bits:
 	; Read 2 bits from input
 	; Output: A = value (0-3); 6 high bits are undefined
 	; Clobbers: C, ZN
-	; Average cost: 57.5 cycles including JSR+RTS
+	; Cost:
+	;    1536 out of 2048 times: 36 cycles
+	;     510 out of 2048 times: 69 cycles
+	;       2 out of 2048 times: 78 cycles
+	; Average: 44.26 cycles
+	; Total average cost with JSR+RTS: 56.26 cycles
+	; Minimum: 48 cycles
+	; Maximum: 90 cycles
 	jsr ReadBit
 	rol a
 	jsr ReadBit
