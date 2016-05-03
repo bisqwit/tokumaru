@@ -8,6 +8,9 @@ $text = array(
    '1. Purpose' => "
 
 Compress and decompress bitmaps.
+<p>
+<img src=\"/src/tokumaru-demo.png\" alt=\"Demo screenshot\" title=\"Demo screenshot\">
+
 
 ", '1. Copying' => "
 
