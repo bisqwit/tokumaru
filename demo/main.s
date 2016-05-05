@@ -138,6 +138,9 @@ IRQ:	rti
     .elseif (n)=7
 	php
 	plp
+    .elseif (n)=9
+	nop
+	delay_n 7
     .elseif (n)=12
 	jsr rts12
     .elseif (n)=14
@@ -171,47 +174,47 @@ IRQ:	rti
 
 
 .segment "NMI"
-NMI:	php
-	pha
-	txa
-	pha
-	tya
-	pha
-	 inc NMIcounter
-	 lda #0
-	 sta $2003
-	 lda #2
-	 sta $4014
-	 bit $2002
+NMI:	php	;3
+	pha	;3
+	txa	;2
+	pha	;3
+	tya	;2
+	pha	;3
+	 inc NMIcounter	;5
+	 lda #0		;2
+	 sta $2003	;4
+	 lda #2		;2
+	 sta $4014	;4
+	 bit $2002	;4
 
-	 lda WhichSystem
-	 bpl @cont
+	 lda WhichSystem	;3
+	 bpl @cont		;3
 	 jmp @quick_nmi
 	@cont:
 
-	 lda NMIcounter
+	 lda NMIcounter		;3
 	 ;and #$40
 	 ;lsr ;$20
-	 ;lsr ;$10
-	 and #$10
-	 ora #$80
-	 sta Byte1
+	 lsr ;$10		;2
+	 and #$10		;2
+	 ora #$80		;2
+	 sta Byte1		;3
 	 
-	 lda #$80
-	 sta $2000
+	 lda #$80		;2
+	 sta $2000		;4
 
-	 lda #$90
-	 sta Byte2
+	 lda #$90		;2
+	 sta Byte2		;4
 
-	 jsr StarField
+	 jsr StarField		;4301
 
 	 jsr delay_that_amount1
 
 	 lda Byte1
 	 ldx #$90
 
-	 @ppu_cycles .set 14*8+3
-	 @cpu_cycles .set 5
+	 @ppu_cycles .set 32*8+3
+	 @cpu_cycles .set 0
 
 	 .repeat 64
 
@@ -243,8 +246,9 @@ NMI:	php
 	plp
 	rti
 
-
+.segment "STARFIELD"
 StarField:
+	; 4289 cycles + JSR+RTS
 	ldx #0
 :	lda $201,x ;attr			;4
 	and #3					;2
@@ -258,31 +262,27 @@ StarField:
 	sec					;2
 	sbc #$48				;2
 	cmp #($D0-$48)				;2
-	bcs @nohide1				;2
+	Jcs @nohide1				;2
 	lda $203,x	;4			;4
 	; carry is clear
 	sbc #$0B-1	;2			;2
 	cmp #($E3-$0B)	;2			;2
-	bcs @nohide2	;2			;2
+	Jcs @nohide2	;2			;2
 	;
 @hide:	lda #$F8	;2			;2
 	sta $200,x	;5			;5
-	bne @next	;3			;3
+	Jne @next	;3			;3
 @nohide1:
-	;1 cycle done, 9 to go
-	nop
-	php
-	plp
-@nohide2:		;1
+	delay_n 10
+@nohide2:
 	lda $300,x	;4
-	nop
-	jmp *+3         ;5 cycles of delay
+	delay_n 5       ;5
 @next:	sta $200,x				;5
 	inx					;2
 	inx					;2
 	inx					;2
 	inx					;2
-	bne :-					;3
+	Jne :-					;3
 	rts					;-1
 
 StarFieldInit:
@@ -349,14 +349,17 @@ IdentifySystem:
 .segment "DELAY1"
 delay_that_amount1:
 	@num          .set $91
-	@already_done .set (3+3+2+3+3+2+4+2+4+3+2+4+2+2+513+6+2+4+3+4+3+6+64*67-1+2+12)
+	@already_done .set (16+21+4331 + 12+25)
+	;16 and 21 are first parts of NMI routine
+	;4331 is the third part including StarField
+	;12 is the JSR+RTS to this routine, 25 is this routine
 
-	ldx WhichSystem
-	lda @ptrhi,x
-	pha
-	lda @ptrlo,x
-	pha
-	rts
+	ldx WhichSystem	;3
+	lda @ptrhi,x	;5
+	pha		;3
+	lda @ptrlo,x	;5
+	pha		;3
+	rts		;6
 @ptrlo: .byte <(@sys0-1), <(@sys1-1), <(@sys2-1), <(@sys3-1)
 @ptrhi: .byte >(@sys0-1), >(@sys1-1), >(@sys2-1), >(@sys3-1)
 @sys0:
@@ -393,6 +396,7 @@ delay_a_25_clocks:
 :      Jne @rts   ; 2  2              3   00 00             01   0 1         0
 @rts:  rts        ; 6  6  6  6  6  6  6   00 00 00 00 01 01 01   0 1 1 1 0 0 1
 ; Total cycles:    25 26 27 28 29 30 31
+
 ;;;;;;;;;;;;;;;;;;;;;;;;
 ; Delays X*256+A clocks + overhead
 ; Clobbers A,X. Preserves Y.
@@ -400,18 +404,15 @@ delay_a_25_clocks:
 ; Time: X*256+A+30 clocks (including JSR)
 ;;;;;;;;;;;;;;;;;;;;;;;;
 delay_256x_a_30_clocks:
-       cpx #0
-       Jeq delay_a_25_clocks
-       ;4 cycles done. Loop is 256 cycles
-:      pha
-        lda #(256-25-(7+2)-(2+2+3))
-        jsr delay_a_25_clocks
-       pla
-       dex
-       Jeq delay_a_25_clocks ; count as 2
-       Jne :-
-       ;Loop end is -1+1 = 0 cycles. Total: 4+JSR+RTS = 16
-
+:       cpx #0			;2
+        Jeq delay_a_25_clocks	;3
+        ;4 cycles done. Must consume 256 cycles; 252 cycles remain.
+        pha				;3
+         lda #(256-4-(3+2+4+2+3))-25	;2
+         jsr delay_a_25_clocks		;238
+        pla				;4
+        dex				;2
+        jmp :-				;3
 
 .segment "CODE"
 rts15:	jmp rts12
