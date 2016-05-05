@@ -3,14 +3,18 @@
 EXTENDED_FORMAT=1
 ; ^ Set to 1 if you compressed with -e.
 ;   Makes decompressor 5 bytes shorter. No calculable speed difference.
+;   If you compressed with -e3, set to 3. If with -e2, set to 2.
+;   +2 makes decompresser 1 byte smaller, but consumes 2 more bytes of RAM.
 
-FASTER=1
+FASTER=0
 ; ^ Set to 1 if you want faster code.
-;   Makes decompressor 16 bytes longer, but 20 cycles faster per bit.
+;   It will cause ReadBit to be inlined, and some other assorted changes.
+;   Makes decompressor 37 bytes longer, but about 10 cycles faster per bit.
 
 RAMBUFFER=1
 ; ^ Set to 1 if you can spare 7 more bytes of zero-page RAM.
-;   Makes decompressor 5-6 bytes shorter, and 27-29 cycles faster per tile.
+;   Makes decompressor 6-7 bytes shorter, and 8-10 cycles faster per tile.
+;   If FASTER=1, makes 5-6 bytes shorter, and 28-30 cycles faster per tile.
 
 RAMTEMP=1
 ; ^ Set to 1 if you can spare 3 more bytes of zero-page RAM.
@@ -19,13 +23,15 @@ RAMTEMP=1
 ; SUMMARY -- SIZE PROFILE FOR DECOMPRESSOR:
 ;
 ;  RAMBUFFER RAMTEMP  CODE SIZE    RAM USE    MAXIMUM STACK USE
-;  0         0        $DE (222)    12 bytes   12 bytes
-;  0         1        $E0 (224)    15 bytes   11 bytes
-;  1         0        $D9 (217)    19 bytes   4 bytes
-;  1         1        $DA (218)    22 bytes   2 bytes
+;  0         0        $DA (218)    12 bytes   13 bytes
+;  0         1        $DC (220)    15 bytes   10 bytes
+;  1         0        $D4 (212)    19 bytes   4 bytes
+;  1         1        $D5 (213)    22 bytes   2 bytes
 ;
-; IF EXTENDED_FORMAT=0, ADD 5 BYTES
-; IF FASTER=1,          ADD 16 BYTES
+; IF EXTENDED_FORMAT=0,  ADD 5 BYTES
+; IF EXTENDED_FORMAT>=2, SUBTRACT 1 BYTE, but add 2 bytes of RAM use
+; IF FASTER=1,          ADD 37 BYTES.
+; IF RAMBUFFER=1 & FASTER=1, ADD 1 EXTRA BYTE.
 ;
 ; END OF USER-ADJUSTABLE SETTINGS
 
@@ -49,8 +55,13 @@ Part2 = *-8             ; overlap 1 byte with Plane1
 ; Temporaries used during color extraction.
 ; Reuses tile decoding temporaries,
 ; as they're not needed at the same time.
+.if EXTENDED_FORMAT&2
+ColorN:          .res 1
+ColorA:          .res 1
+.else
 ColorN         = Plane0 ; current color
 ColorA         = Plane1 ; pivot color
+.endif
 NextWork       = Next+0 ; workbench for Next,X
 
 .if RAMTEMP=1
@@ -62,6 +73,7 @@ ReadBit_Ytemp:   .res 1
 
 ; Inputs:
 .importzp SourcePtr
+
 
 .segment "DECOMPRESS"
 
@@ -76,6 +88,10 @@ DecompressTokumaru:
 	sta BitBuffer
 
 	ldy #0
+.if EXTENDED_FORMAT&2
+	sty Plane0
+	sty Plane1
+.endif
 	lda (SourcePtr),y
 .if RAMTEMP=1
 	sta TilesRemaining
@@ -87,11 +103,25 @@ DecompressTokumaru:
 	inc SourcePtr+1
 :
 
+.macro Read1Bit
+    ; When RAMTEMP=0 and FASTER=0: Average: 20.75, minimum: 16, maximum: 58
+    ; When RAMTEMP=0 and FASTER=1: Average: 10.50, minimum: 5, maximum: 58
+    ; When RAMTEMP=1 and FASTER=0: Average: 19.38, minimum: 16, maximum: 52
+    ; When RAMTEMP=1 and FASTER=1: Average:  9.75, minimum: 5, maximum: 52
+    .if FASTER=1
+	asl BitBuffer
+	bne *+5
+	jsr ReadBit_Reload
+    .else
+	jsr ReadBit
+    .endif
+.endmacro
+
 .macro Read2Bits
 ;	; Read 2 bits from input
 ;	; Output: A = value (0-3); 6 high bits are undefined
 ;	; Clobbers: C, ZN
-    .if FASTER=1
+	; If FASTER=1
 ;	; Cost:
 ;	;    1536 out of 2048 times: 14 cycles
 ;	;     510 out of 2048 times: 57 cycles (51 if RAMTEMP=1)
@@ -99,13 +129,8 @@ DecompressTokumaru:
 ;	; Average: 24.76 cycles (23.26 if RAMTEMP=1)
 ;	; Minimum: 14 cycles
 ;	; Maximum: 66 cycles (60 if RAMTEMP=1)
-      .repeat 2
-	asl BitBuffer
-	bne *+5
-	jsr ReadBit_Reload
-	rol a
-      .endrepeat
-    .else
+	;
+;	; If FASTER=0
 ;	; Cost:
 ;	;    1536 out of 2048 times: 36 cycles (36 if RAMTEMP=1)
 ;	;     510 out of 2048 times: 69 cycles (63 if RAMTEMP=1)
@@ -113,11 +138,10 @@ DecompressTokumaru:
 ;	; Average: 44.26 cycles (42.76 if RAMTEMP=1)
 ;	; Minimum: 36 cycles
 ;	; Maximum: 78 cycles    (72 if RAMTEMP=1)
-	jsr ReadBit
+      .repeat 2
+	Read1Bit
 	rol a
-	jsr ReadBit
-	rol a
-    .endif
+      .endrepeat
 .endmacro
 
 
@@ -129,26 +153,62 @@ DecompressTokumaru:
 	sta Count,x
 	beq @colorcounter
 	; Choose pivot color
-	;     Bit sequence Value of x Value of A
-	;     0,10,11      0          1,2,3
-	;     0,10,11      1          0,2,3
-	;     0,10,11      2          0,1,3
-	;     0,10,11      3          0,1,2
-	;   A = ReadBit() ? 2 + ReadBit() : 1
-	;   A -= !(x < A)
-	lda #1
-	jsr ReadBit
+	;     Bit sequence x Goal   BitValue0 BitValue1 BitValue2 x>BitValue0 x<BitValue1
+	;     0,10,11      0 1,2,3  0,1,2     1,2,3     2,1,0     0,0,0       1,1,1      
+	;     0,10,11      1 0,2,3  0,1,2     1,2,3     2,1,0     1,0,0       0,1,1      
+	;     0,10,11      2 0,1,3  0,1,2     1,2,3     2,1,0     1,1,0       0,0,1      
+	;     0,10,11      3 0,1,2  0,1,2     1,2,3     2,1,0     1,1,1       0,0,0      
+	;
+	;   BitValue0 = ReadBit() ? 1 + ReadBit() : 0
+	;   BitValue1 = ReadBit() ? 1 + ReadBit() : 0
+	;   A = BitValue0 + (x < BitValue1) = BitValue0 + !(BitValue0 < x)
+	;   A = BitValue1 - (BitValue0 < x) = BitValue1 - !(x < BitValue1)
+.if 0
+	stx NextWork
+	ldy #$FF
+:	iny
+	cpy #2
+	beq :+
+	Read1Bit
+	bcs :-
+:	cpy NextWork
 	bcc :+
-	jsr ReadBit
+	iny
+:	;tya
+.else
+	lda #0
+	Read1Bit
+	bcc :+
+	Read1Bit
 	adc #1
-:	sta ColorA
-	cpx ColorA
-	bcc :+
-	; carry is set
-	sbc #1
-:	; Save A in NextWork
+:	stx ColorN
+	cmp ColorN
+	adc #0
+	;tay
+.endif
+
+.if 0	; This bitmask code is so nice, but unfortunately the 4-byte table
+	; it requires makes it 3 bytes larger than the alternative.
+	lda BitMask,x ; X
+	ora BitMask,y ; A
+	sta ColorA ; bitmask
+	tya
+	; Save A in NextWork
+	ldy #$FF
+@store:	lsr a
+	ror NextWork
+	lsr a
+	ror NextWork
+:	asl ColorA
+	beq @done
+	iny
+	bcs :-
+@storey:; Store in NextWork
+	tya
+	bpl @store
+@done:
+.else
 	sta ColorA
-	stx ColorN
 	ldy #255
 	.byte $C9 ;cmp #
 @storey:; Store in NextWork
@@ -166,6 +226,7 @@ DecompressTokumaru:
 	beq :-
 	cpy #4
 	bne @storey
+.endif
 
 	lda NextWork
 	ldy Count,x
@@ -180,31 +241,37 @@ DecompressTokumaru:
 	dex
 	bpl @nextcolor
 
-
+.if (EXTENDED_FORMAT&2)=0
 	; X = $FF
 	; Clear the "previous" tile row
 	inx ;ldx #0
 	stx Plane0
 	stx Plane1
-
-
+.endif
 
 	; First: X=0,       A=unknown, Y=unknown, Z=true, N=false, C=unknown
 	; Other: X=unknown, A=unknown, Y=unknown, ZN=unknown, C=false
 @BeginTile:
 	; Read 8 rows
 .if RAMBUFFER=1
-	;5 cycles
+	;2 cycles
+    .if FASTER=1
 	ldx #7
 	stx RowsRemaining
+@nextrow:
+    .else
+	ldx #8
+@nextrow:
+	stx RowsRemaining
+    .endif
 .else
 	;7 cycles
 	sec
 	ror RowsRemaining ; When LSR clears this bit, 8 rows have been completed
-.endif
 @nextrow:
+.endif
 	; if(ReadBit()) goto RowIsDone;
-	jsr ReadBit
+	Read1Bit
 	bcs @row_completed
 	; Read 8 pixels
 	; Read the color of the first pixel, and draw it
@@ -223,9 +290,9 @@ DecompressTokumaru:
 	ldy Count,x
 	beq @putpixel
 
-.if EXTENDED_FORMAT=1
+.if EXTENDED_FORMAT&1
 
-:	jsr ReadBit
+:	Read1Bit
 	bcc @putpixel
 	lsr a      ; put next0 in low 2 bits
 	lsr a
@@ -233,13 +300,13 @@ DecompressTokumaru:
 	bne :-
 .else
 
-	jsr ReadBit
+	Read1Bit
 	bcs @putpixel
 :	lsr a      ; put next0 in low 2 bits
 	lsr a
 	dey
 	beq @putpixel
-	jsr ReadBit
+	Read1Bit
 	bcs :-
 
 .endif
@@ -261,12 +328,19 @@ DecompressTokumaru:
 	sta $2007
 	lda Plane1
 .if RAMBUFFER=1
-	; 13 cycles per row
+	; 16 cycles per row
 	ldx RowsRemaining
+    .if FASTER=1
 	dec RowsRemaining
 	sta Part2,x
 	bpl @nextrow
-	; 8*13 + 2+8*(4+2+3)-1 = 177 cycles per tile (+2 if RAMTEMP=0)
+	; 6+8*13 + 2+8*(4+2+3)-1 = 183 cycles per tile (+2 if RAMTEMP=0)
+    .else
+	dex
+	sta Part2,x
+	bne @nextrow
+	; 2+8*16 + 2+8*(4+2+3)-1 = 203 cycles per tile (+2 if RAMTEMP=0)
+    .endif
 	ldx #7
 :	lda Part2,x
 	sta $2007
@@ -304,7 +378,7 @@ DecompressTokumaru:
 	; loop will not clobber our stack data.
 	tax
 	txs
-	; 8*8 + 2+2+3+2+2+8*(4+4+2+3+3)-1+2+2 = 206 cycles per tile
+	; 7+8*8 + 2+2+3+2+2+8*(4+4+2+3+3)-1+2+2 = 213 cycles per tile
 .endif
 	; If there are more tiles to decode, decode
 .if RAMTEMP=1
@@ -313,7 +387,7 @@ DecompressTokumaru:
 	dec $101,x ;TilesRemaining (accomplishes the same as PLA--SEC--SBC#1--PHA)
 .endif
 	beq EndCompress
-	jsr ReadBit
+	Read1Bit
 	bcc @BeginTile
 	jmp @BeginBlock
 
@@ -376,6 +450,8 @@ EndCompress:
 rbwrap:	  inc SourcePtr+1
 	  bne :- ; Assumed to be unconditional.
 
+;BitMask:	.byte $88,$48,$28,$18
 
 	@e=DecompressTokumaru+$F0
 	.assert * < @e, warning, .sprintf("Decompressor is %d bytes larger than Tokumaru's code",*-@e)
+

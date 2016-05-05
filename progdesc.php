@@ -9,7 +9,7 @@ $text = array(
 
 Compress and decompress bitmaps.
  <p>
-<img src=\"/src/tokumaru-demo.png\" alt=\"Demo screenshot\" title=\"Demo screenshot\">
+<img src=\"/src/tokumaru-demo.gif\" alt=\"Demo screenshot\" title=\"Demo screenshot\">
  <p>
 In tests, it usually achieves about 40% reduction in data size,
 and as such, compresses better than any other known image

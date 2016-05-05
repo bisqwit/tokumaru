@@ -12,10 +12,10 @@ make_graphics: graphics.cc \
 	g++ -o "$@" "$<" -O0 -std=c++14
 
 test_page0.bin: tokumaru make_graphics
-	./make_graphics | dd bs=4096 skip=0 count=1 | ./tokumaru -e16 - "$@"
+	./make_graphics | dd bs=4096 skip=0 count=1 | ./tokumaru -e -16 - "$@"
 
 test_page1.bin: tokumaru make_graphics
-	./make_graphics | dd bs=4096 skip=1 count=1 | ./tokumaru -e16 - "$@"
+	./make_graphics | dd bs=4096 skip=1 count=1 | ./tokumaru -e -16 - "$@"
 
 tokumaru: ../tokumaru.cc
 	make -C .. tokumaru

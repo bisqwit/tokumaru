@@ -39,7 +39,9 @@
 
 static unsigned compressionlevel = 5;
 static bool threads  = true;
-static bool extended = false;
+static bool extension_invertbit     = false; // Make decompressor smaller
+static bool extension_persistentrow = false; // Makes decompressor 1 byte smaller, but compression ratio worse :(
+
 static std::FILE* diagnostics = nullptr;
 
 // Extract one pixel from a tile.
@@ -64,14 +66,17 @@ struct FollowupData
 };
 
 template<typename F>
-static void CompressWholeBlock(const unsigned char* tiles, unsigned numtiles, F&& PutBits)
+static void CompressWholeBlock(const unsigned char* tiles, unsigned numtiles, F&& PutBits,
+                               const unsigned char* previous)
 {
     // First encode colors
     FollowupData f;
     for(unsigned c=0; c<4; ++c) for(unsigned d=0; d<4; ++d) f.next[c][d] = d + (c==d ? 0 : 4);
 
+    const unsigned char* const first_prevrow = extension_persistentrow ? previous : blankrow;
+
     // Measure the number of transitions from each color to another
-    for(const unsigned char* prevrow = blankrow, *tp = tiles; tp < tiles+16*numtiles; tp += 16)
+    for(const unsigned char* prevrow = first_prevrow, *tp = tiles; tp < tiles+16*numtiles; tp += 16)
         for(unsigned y=0; y<8; prevrow = tp + y++)
             if(!IdenticalRows(prevrow, tp+y))
                 for(unsigned d,c=0, x=0; x<8; ++x, c=d)
@@ -115,7 +120,7 @@ static void CompressWholeBlock(const unsigned char* tiles, unsigned numtiles, F&
     }
 
     // Then encode tiles
-    for(const unsigned char* prevrow = blankrow, *tp = tiles; tp < tiles+16*numtiles; tp += 16)
+    for(const unsigned char* prevrow = first_prevrow, *tp = tiles; tp < tiles+16*numtiles; tp += 16)
     {
         if(tp!=tiles) PutBits(0, 1); // flag for read more tiles
         for(unsigned y=0; y<8; prevrow = tp + y++)
@@ -124,7 +129,8 @@ static void CompressWholeBlock(const unsigned char* tiles, unsigned numtiles, F&
                 {
                     unsigned prev=c; c=ExtractColor(tp,y,x);
                     if(x == 0) { PutBits(c, 2); continue; }
-                    if(f.count[prev]==0 || PutBits((c == prev)^extended, 1)!=extended
+                    if(f.count[prev]==0 || (extension_invertbit ? !PutBits(c != prev, 1)
+                                                                :  PutBits(c == prev, 1))
                     || f.count[prev]==1 || !PutBits(c != f.next[prev][0], 1)
                     || f.count[prev]==2 || !PutBits(c != f.next[prev][1], 1)) continue;
                 }
@@ -143,7 +149,7 @@ static void CompressTilesWithBlockSplitting(const unsigned char* tiles, unsigned
 
     if(diagnostics) std::fprintf(diagnostics, "Creating compression benchmark... ");
     #pragma omp parallel for schedule(static) if(threads)
-    for(unsigned begin=0; begin<numtiles; ++begin)
+    for(unsigned position=0; position<numtiles; ++position)
     {
         int tn = 0, nt = 1;
         #ifdef _OPENMP
@@ -151,15 +157,16 @@ static void CompressTilesWithBlockSplitting(const unsigned char* tiles, unsigned
         #endif
         if(tn == 0 && diagnostics)
         {
-            std::fprintf(diagnostics, "%6.2f%%\b\b\b\b\b\b\b", (begin+1)*100.0/double(numtiles/nt));
+            std::fprintf(diagnostics, "%6.2f%%\b\b\b\b\b\b\b", (position+1)*100.0/double(numtiles/nt));
             std::fflush(diagnostics);
         }
-        for(unsigned length=std::min(MaxLeap,numtiles-begin); length>0; --length)
+        for(unsigned length=std::min(MaxLeap,numtiles-position); length>0; --length)
         {
             unsigned bits=0;
-            CompressWholeBlock(tiles+begin*16, length,
-                [&](unsigned value, unsigned numbits) { bits += numbits; return value; });
-            compress_tree[begin*numtiles + length] = bits;
+            CompressWholeBlock(tiles+position*16, length,
+                [&](unsigned value, unsigned numbits) { bits += numbits; return value; },
+                               position>0 ? tiles+position*16-9 : blankrow);
+            compress_tree[position*numtiles + length] = bits;
         }
     }
     if(diagnostics) std::fprintf(diagnostics, "\n");
@@ -201,7 +208,8 @@ static void CompressTilesWithBlockSplitting(const unsigned char* tiles, unsigned
     {
         unsigned leap = *i;
         if(position) PutBits(1,1);
-        CompressWholeBlock(tiles + position*16, leap, PutBits);
+        CompressWholeBlock(tiles + position*16, leap, PutBits,
+                           position>0 ? tiles+position*16-9 : blankrow);
         position += leap;
     }
     assert(position == numtiles);
@@ -223,7 +231,7 @@ static void CompressTiles(const unsigned char* tiles, unsigned numtiles, F&& Put
     };
     PutByte(numtiles < 256 ? numtiles : 0u);
     if(compressionlevel == 0)
-        CompressWholeBlock(tiles, numtiles, PutBits);
+        CompressWholeBlock(tiles, numtiles, PutBits, blankrow);
     else
         CompressTilesWithBlockSplitting(tiles, numtiles, PutBits);
     // flush bits
@@ -247,6 +255,7 @@ static void DecompressTiles(const unsigned char* data, int bytesremain, std::vec
     unsigned num_tiles = bytesremain-- ? *data++ : 0;
     if(diagnostics) std::fprintf(diagnostics, "Decoding %u tiles...\n", num_tiles);
     unsigned char Count[4], Next0[4]{0,0,0,0}, Next1[4]{0,0,0,0}, Next2[4]{0,0,0,0};
+    unsigned char part0=0x00, part1=0x00, plane2[8];
 read_colors:
     for(unsigned A,B,C,n, c=4; c-- > 0; Count[c] = n)
     {
@@ -263,14 +272,14 @@ read_colors:
         if(n == 2) { A = B; B = C; } // When count=2, A is _not_ included
         Next0[c] = A; Next1[c] = B; Next2[c] = C;
     }
-    unsigned char part0=0x00, part1=0x00, plane2[8];
+    if(!extension_persistentrow) { part0=0x00; part1=0x00; }
 read_tiles:
     for(unsigned y=0; y<8; output.push_back(part0), plane2[y++] = part1)
         if(!GetBit())
             for(unsigned c=0, x=0; x<8; ++x)
             {
                 c = (x==0) ? Get2Bits()
-                  : (Count[c]==0 ||  GetBit()!=extended) ? c
+                  : (Count[c]==0 ||  GetBit()!=extension_invertbit) ? c
                   : (Count[c]==1 || !GetBit()) ? Next0[c]
                   : (Count[c]==2 || !GetBit()) ? Next1[c]
                   :                              Next2[c];
@@ -309,8 +318,15 @@ int main(int argc, char** argv)
                     decompress = true;
                     break;
                 case 'e':
-                    extended = true;
+                {
+                    unsigned mask = 1;
+                    if(s[1] >= '0' && s[1] <= '9')
+                        for(mask=0; s[1]>='0' && s[1]<='9'; ++s)
+                            mask = mask*10 + (s[1] - '0');
+                    extension_invertbit     = mask & 1;
+                    extension_persistentrow = mask & 2;
                     break;
+                }
                 case 'q':
                     diagnostics = nullptr;
                     break;
@@ -336,7 +352,10 @@ int main(int argc, char** argv)
                         "Usage: tokumaru [OPTION]... [INFILE] [OUTFILE]\n"
                         "    -d         Decompress\n"
                         "    -q         Suppress output\n"
-                        "    -e         Extended format (permits a smaller decompressor)\n"
+                        "    -e[mask]   Enable extensions. Bitmask is optional and is a sum of following values:\n"
+                        "                 1 = Invert the first tile color bit (5 bytes smaller decompressor)\n"
+                        "                 2 = Enable persistent rows (1 byte smaller decompressor, but worse compression ratio)\n"
+                        "               Default if -e is used without options: 1\n"
                     #ifdef _OPENMP
                         "    -t         Don't use threads\n"
                     #else
