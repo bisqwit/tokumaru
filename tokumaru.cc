@@ -37,6 +37,8 @@
 # include <omp.h>
 #endif
 
+#include "dijkstra.hh"
+
 static unsigned compressionlevel = 5;
 static bool threads  = true;
 static bool extension_invertbit     = false; // Make decompressor smaller
@@ -172,37 +174,17 @@ static void CompressTilesWithBlockSplitting(const unsigned char* tiles, unsigned
     if(diagnostics) std::fprintf(diagnostics, "\n");
 
     // Figure out the shortest path through that graph (use Dijkstra's algorithm)
-    struct Record { unsigned distance=~0u, previous=~0u; bool visited=false; };
-    std::vector<Record> targets(numtiles+1);
-
-    typedef std::pair<unsigned,unsigned> P;
-    struct Prioritize { bool operator()(const P& a,const P& b) { return a.second > b.second; } };
-    std::priority_queue<P, std::vector<P>, Prioritize> queue;
-    queue.emplace(0,0);
-    targets[0] = Record{0, ~0u, false};
-    while(!queue.empty())
-    {
-        // Take the shortest candidate
-        auto top = std::move(queue.top()); queue.pop();
-        unsigned vert = top.first, cost = top.second;
-        if(targets[vert].visited) continue;
-        targets[vert].visited = true;
-        assert(targets[vert].distance == cost);
-        // Try all different size leaps from that position
-        for(unsigned leap = 1; leap <= std::min(MaxLeap,numtiles-vert); ++leap)
-        {
-            unsigned ends_at  = vert + leap;
-            unsigned distance = compress_tree[vert*numtiles + leap] + !!vert;
-
-            if(!targets[ends_at].visited && distance+cost < targets[ends_at].distance)
-            {
-                targets[ends_at].previous = vert;
-                queue.emplace(ends_at, targets[ends_at].distance = distance+cost);
-            }
-        }
-    }
     std::vector<unsigned> leaps;
-    for(unsigned n=0,t=numtiles; t!=0; t=n) leaps.push_back(t - (n = targets[t].previous));
+    /*unsigned total = */Dijkstra<unsigned>(0u, numtiles,
+        [&](unsigned node, auto&& f)
+        {
+            for(unsigned leap=1; leap<=std::min(MaxLeap, numtiles-node); ++leap)
+                f(node+leap, compress_tree[node*numtiles + leap] + (node!=0));
+        },
+        [&](unsigned to, unsigned from, unsigned /*distance*/)
+        {
+            leaps.push_back(to-from);
+        });
     unsigned position = 0;
     for(auto i = leaps.crbegin(); i != leaps.crend(); ++i)
     {

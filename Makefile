@@ -3,6 +3,7 @@ CXXFLAGS=-std=c++14 -Wall -Ofast -fopenmp -Wextra -march=native
 ARCHDIR=archives/
 ARCHFILES=\
 	tokumaru.cc algorithm.txt \
+	dijkstra.hh \
 	demo/decompress.s \
 	demo/graphics.cc \
 	demo/link.cfg \
@@ -41,11 +42,11 @@ source.zip: tokumaru.cc Makefile algorithm.txt README
 
 test:	tokumaru smb1a.dat kirbyu.dat
 	#
-	bash -c 'cmp smb1a.dat  <(./tokumaru smb1a.dat -  | ./tokumaru -d - -)'
-	bash -c 'cmp kirbyu.dat <(./tokumaru kirbyu.dat - | ./tokumaru -d - -)'
+	bash -c 'cmp smb1a.dat  <(./tokumaru -e0 smb1a.dat -  | ./tokumaru -d - -)'
+	bash -c 'cmp kirbyu.dat <(./tokumaru -e0 kirbyu.dat - | ./tokumaru -d - -)'
 	#
-	bash -c 'cmp smb1a.dat  <(./tokumaru -e smb1a.dat -  | ./tokumaru -ed - -)'
-	bash -c 'cmp kirbyu.dat <(./tokumaru -e kirbyu.dat - | ./tokumaru -ed - -)'
+	bash -c 'cmp smb1a.dat  <(./tokumaru -e1 smb1a.dat -  | ./tokumaru -d -e1 - -)'
+	bash -c 'cmp kirbyu.dat <(./tokumaru -e1 kirbyu.dat - | ./tokumaru -d -e1 - -)'
 
 demo/test.nes: demo/decompress.s demo/main.s demo/link.cfg demo/graphics.cc tokumaru demo/main.s
 	make -C demo test.nes

@@ -21,6 +21,7 @@ Reset:
 	lda #0
 	sta $2000
 	sta $2001
+.ifndef PROFILE
 	; Wait two vblanks
 	bit $2002
 	ldx #2
@@ -59,12 +60,18 @@ Reset:
 	cpy #$20
 	bne :-
 	; Populate CHR-RAM
+.endif
 	lda #<TilePage0
 	ldx #>TilePage0
 	jsr SetSource
 	lda #<$0000
 	ldx #>$0000
+	eor #$01 ; Peculiar opcode to use in disassembly trace for marker of start decompress
 	jsr Decompress
+	eor #$00 ; Peculiar opcode to use in disassembly trace for marker of end decompress
+.ifdef PROFILE
+	sta $6000
+.else
 	lda #<$1000
 	ldx #>$1000
 	jsr Decompress
@@ -86,6 +93,7 @@ Reset:
 	sta $2000
 	lda #$1E
 	sta $2001
+.endif
 @jam:	jmp @jam
 
 Decompress:	
